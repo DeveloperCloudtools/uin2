@@ -1,8 +1,15 @@
 import { s3 } from "@/lib/minio";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 
 export async function POST(req) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return Response.json({ error: "Não autenticado." }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const file = formData.get("file");
 
