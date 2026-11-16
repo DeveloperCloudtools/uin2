@@ -3,6 +3,7 @@ import { useTranslations } from "@/app/hooks/useTranslations";
 function SignInModal({
   showSignInModal,
   setShowSignInModal,
+  onCreateAccount,
   theme,
   signInStep,
   setSignInStep,
@@ -85,6 +86,18 @@ function SignInModal({
               }}
             >
               {t.signIn.signInCode}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                closeModal();
+                onCreateAccount();
+              }}
+              className="w-full mt-4 text-sm font-medium underline"
+              style={{ color: theme.primary }}
+            >
+              {t.signIn.createAccountPrompt}
             </button>
 
             <button

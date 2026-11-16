@@ -8,7 +8,6 @@ function SignUpModal({
   theme,
   handleSignUp,
   sendingEmail,
-  signupMessage,
   signupError,
   acceptedPrivacy,
   setAcceptedPrivacy,
@@ -95,12 +94,6 @@ function SignUpModal({
           </p>
         )}
 
-        {signupMessage && (
-          <p className="text-sm text-green-600 mb-4">
-            {signupMessage}
-          </p>
-        )}
-
         <div className="flex justify-end gap-3">
           <button
             type="button"
@@ -129,6 +122,52 @@ function SignUpModal({
             }}
           >
             {sendingEmail ? t.geral.buttons.sending : t.geral.buttons.send}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function SignUpConfirmationModal({ show, onConfirm, theme }) {
+  const t = useTranslations();
+
+  if (!show) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="signup-confirmation-title"
+        className="w-full max-w-md rounded-2xl p-6 shadow-2xl"
+        style={{
+          background: theme.background,
+          color: theme.text,
+        }}
+      >
+        <h2
+          id="signup-confirmation-title"
+          className="text-2xl font-semibold mb-2"
+        >
+          {t.signUp.confirmationTitle}
+        </h2>
+
+        <p className="text-sm opacity-70 mb-6">
+          {t.signUp.confirmationMessage}
+        </p>
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="px-5 py-3 rounded-xl font-medium transition hover:scale-105"
+            style={{
+              background: theme.primary,
+              color: "#fff",
+            }}
+          >
+            {t.geral.buttons.ok}
           </button>
         </div>
       </div>

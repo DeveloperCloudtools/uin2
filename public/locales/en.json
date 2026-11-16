@@ -7,7 +7,8 @@
             "continue": "Continue",
             "checking": "Checking...",
             "send": "Send",
-            "sending": "Sending..."
+            "sending": "Sending...",
+            "ok": "OK"
         },
         "signValues": {
             "signIn": "Sign in",
@@ -30,7 +31,6 @@
                     "invalidAccessCode": "Invalid access code."
                 },
                 "success": {
-                    "accessCodeSent": "Code sent successfully.",
                     "signInSuccess": "Signed in successfully!",
                     "validAccessCode": "Valid access code.",
                     "passwordSet": "Password set successfully."
@@ -41,6 +41,7 @@
     "signIn": {
         "signIn": "Sign in",
         "description": "Choose an option to sign in.",
+        "createAccountPrompt": "Don't have an account? Create one",
         "signInInfo": "Sign in with email and password",
         "signInCode": "Sign in with access code",
         "signInPathInfo": "Enter your email and password to continue.",
@@ -51,6 +52,8 @@
     },
     "signUp": {
         "signUp": "Create account",
-        "description": "Enter your email to continue."
+        "description": "Enter your email to continue.",
+        "confirmationTitle": "Check your email",
+        "confirmationMessage": "You will receive a code at the email address you provided to complete creating your account."
     }
 }
