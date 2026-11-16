@@ -6,6 +6,7 @@ import {
   LuChefHat,
   LuChevronDown,
   LuClipboardList,
+  LuImage,
   LuLayoutDashboard,
   LuMapPin,
   LuPanelsTopLeft,
@@ -90,6 +91,11 @@ const sidebarSections = [
           { name: "Linguagens", path: "/backend/languages" },
           { name: "Configurações", path: "/backend/advancedConfigurations" },
         ],
+      },
+      {
+        name: "Arquivo de imagens",
+        path: "/backend/image-library",
+        icon: LuImage,
       },
     ],
   },
@@ -200,10 +206,40 @@ export default function Sidebar({ collapsed, setCollapsed }) {
               )}
               {section.items.map((item) => {
                 const Icon = item.icon;
+                const isPageActive = item.path === pathname;
                 const isGroupActive = item.children?.some(
                   (child) => child.path === pathname
                 );
                 const isExpanded = expandedGroups.includes(item.name);
+
+                if (item.path) {
+                  return (
+                    <button
+                      key={item.path}
+                      type="button"
+                      onClick={() => navigate(item.path)}
+                      aria-current={isPageActive ? "page" : undefined}
+                      title={collapsed ? item.name : undefined}
+                      className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+                        isPageActive
+                          ? "bg-red-50 text-red-600 shadow-sm"
+                          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                      }`}
+                    >
+                      <Icon
+                        aria-hidden="true"
+                        className={`h-5 w-5 shrink-0 ${
+                          isPageActive
+                            ? "text-red-600"
+                            : "text-gray-500 group-hover:text-gray-700"
+                        }`}
+                      />
+                      {!collapsed && (
+                        <span className="text-sm font-medium">{item.name}</span>
+                      )}
+                    </button>
+                  );
+                }
 
                 return (
                   <div key={item.name}>
