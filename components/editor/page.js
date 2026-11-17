@@ -397,6 +397,7 @@ export default function Editor({
   const bannerUrlRef = useRef(bannerUrl);
   const bannerFileInputRef = useRef(null);
   const squareImagesRef = useRef(squareImages);
+  const editorRef = useRef(null);
 
   useEffect(() => {
     const nextBannerUrl =
@@ -644,6 +645,7 @@ export default function Editor({
       });
     },
   });
+  editorRef.current = editor;
 
   useEffect(() => {
     const node =
@@ -881,21 +883,24 @@ export default function Editor({
         const snapshot = await ensureOutletItem(productId);
         outletItemId = Number(snapshot.outlet_item_id);
 
-        const transaction = editor.state.tr;
-        editor.state.doc.descendants((node, position) => {
-          if (
-            node.type.name === "product" &&
-            Number(node.attrs.productId) === Number(productId) &&
-            node.attrs.sourceItemId == null
-          ) {
-            transaction.setNodeMarkup(position, undefined, {
-              ...node.attrs,
-              productId: snapshot.outlet_item_id,
-              sourceItemId: snapshot.item_id,
-            });
-          }
-        });
-        if (transaction.docChanged) editor.view.dispatch(transaction);
+        const currentEditor = editorRef.current;
+        if (currentEditor && !currentEditor.isDestroyed) {
+          const transaction = currentEditor.state.tr;
+          currentEditor.state.doc.descendants((node, position) => {
+            if (
+              node.type.name === "product" &&
+              Number(node.attrs.productId) === Number(productId) &&
+              node.attrs.sourceItemId == null
+            ) {
+              transaction.setNodeMarkup(position, undefined, {
+                ...node.attrs,
+                productId: snapshot.outlet_item_id,
+                sourceItemId: snapshot.item_id,
+              });
+            }
+          });
+          if (transaction.docChanged) currentEditor.view.dispatch(transaction);
+        }
       }
 
       setEditingProductId(outletItemId);
@@ -931,29 +936,32 @@ export default function Editor({
       throw new Error(result?.error || "Não foi possível guardar o produto.");
     }
 
-    const transaction = editor.state.tr;
-    editor.state.doc.descendants((node, position) => {
-      if (
-        node.type.name !== "product" ||
-        Number(node.attrs.productId) !== Number(result.outlet_item_id)
-      ) {
-        return;
-      }
+    const currentEditor = editorRef.current;
+    if (currentEditor && !currentEditor.isDestroyed) {
+      const transaction = currentEditor.state.tr;
+      currentEditor.state.doc.descendants((node, position) => {
+        if (
+          node.type.name !== "product" ||
+          Number(node.attrs.productId) !== Number(result.outlet_item_id)
+        ) {
+          return;
+        }
 
-      transaction.setNodeMarkup(position, undefined, {
-        ...node.attrs,
-        productId: result.outlet_item_id,
-        sourceItemId: result.item_id,
-        name: result.item_name1 || "Item sem nome",
-        description: result.item_description1 || "",
-        imageUrl: result.item_image_url || node.attrs.imageUrl || "",
-        productType: result.item_type || "",
-        price: result.item_price,
-        order: result.order,
-        isConfigured: true,
+        transaction.setNodeMarkup(position, undefined, {
+          ...node.attrs,
+          productId: result.outlet_item_id,
+          sourceItemId: result.item_id,
+          name: result.item_name1 || "Item sem nome",
+          description: result.item_description1 || "",
+          imageUrl: result.item_image_url || node.attrs.imageUrl || "",
+          productType: result.item_type || "",
+          price: result.item_price,
+          order: result.order,
+          isConfigured: true,
+        });
       });
-    });
-    if (transaction.docChanged) editor.view.dispatch(transaction);
+      if (transaction.docChanged) currentEditor.view.dispatch(transaction);
+    }
 
     setEditingProductId(null);
     setEditingProduct(null);
