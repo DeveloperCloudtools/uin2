@@ -8,7 +8,9 @@ import "./loading.css";
 import { IoIosLogOut } from "react-icons/io";
 import { CiUser } from "react-icons/ci";
 // import de sign in/sign up
-import SignUpModal from "@/components/sign/signUp";
+import SignUpModal, {
+  SignUpConfirmationModal,
+} from "@/components/sign/signUp";
 import SignInModal from "@/components/sign/signIn";
 import { IoMdNotificationsOutline } from "react-icons/io";
 import FrontendHeader from "@/components/layout/frontend/header";
@@ -88,10 +90,11 @@ export default function Homepage() {
   const [loading, setLoading] = useState(true);
 
   const [showSignUpModal, setShowSignUpModal] = useState(false);
+  const [showSignUpConfirmationModal, setShowSignUpConfirmationModal] =
+    useState(false);
   const [email, setEmail] = useState("");
 
   const [sendingEmail, setSendingEmail] = useState(false);
-  const [signupMessage, setSignupMessage] = useState("");
   const [signupError, setSignupError] = useState("");
 
   const [showSignInModal, setShowSignInModal] = useState(false);
@@ -897,7 +900,6 @@ export default function Homepage() {
 
     setSendingEmail(true);
     setSignupError("");
-    setSignupMessage("");
 
     try {
       const response = await fetch("/api/signup", {
@@ -920,16 +922,10 @@ export default function Homepage() {
         return;
       }
 
-      setSignupMessage(
-        t.geral.signValues.messages.success.accessCodeSent
-      );
-
+      setShowSignUpModal(false);
       setEmail("");
-
-      setTimeout(() => {
-        setShowSignUpModal(false);
-        setSignupMessage("");
-      }, 2500);
+      setAcceptedPrivacy(false);
+      setShowSignUpConfirmationModal(true);
 
     } catch (error) {
       console.error(error);
@@ -1578,15 +1574,21 @@ export default function Homepage() {
           theme={theme}
           handleSignUp={handleSignUp}
           sendingEmail={sendingEmail}
-          signupMessage={signupMessage}
           signupError={signupError}
           acceptedPrivacy={acceptedPrivacy}
           setAcceptedPrivacy={setAcceptedPrivacy}
         />
 
+        <SignUpConfirmationModal
+          show={showSignUpConfirmationModal}
+          onConfirm={() => setShowSignUpConfirmationModal(false)}
+          theme={theme}
+        />
+
         <SignInModal
           showSignInModal={showSignInModal}
           setShowSignInModal={setShowSignInModal}
+          onCreateAccount={() => setShowSignUpModal(true)}
           theme={theme}
 
           signInStep={signInStep}
@@ -1683,7 +1685,6 @@ export default function Homepage() {
           onSignUp={() => {
             setShowSignUpModal(true);
             setSignupError("");
-            setSignupMessage("");
             setMenuOpen(false);
           }}
         />
@@ -1778,15 +1779,21 @@ export default function Homepage() {
           theme={theme}
           handleSignUp={handleSignUp}
           sendingEmail={sendingEmail}
-          signupMessage={signupMessage}
           signupError={signupError}
           acceptedPrivacy={acceptedPrivacy}
           setAcceptedPrivacy={setAcceptedPrivacy}
         />
 
+        <SignUpConfirmationModal
+          show={showSignUpConfirmationModal}
+          onConfirm={() => setShowSignUpConfirmationModal(false)}
+          theme={theme}
+        />
+
         <SignInModal
           showSignInModal={showSignInModal}
           setShowSignInModal={setShowSignInModal}
+          onCreateAccount={() => setShowSignUpModal(true)}
           theme={theme}
 
           signInStep={signInStep}

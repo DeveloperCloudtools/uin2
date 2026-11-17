@@ -7,7 +7,8 @@
             "continue": "Continuar",
             "checking": "A verificar...",
             "send": "Enviar",
-            "sending": "A enviar..."
+            "sending": "A enviar...",
+            "ok": "OK"
         },
         "signValues": {
             "signIn": "Iniciar sessão",
@@ -30,7 +31,6 @@
                     "invalidAccessCode": "Código de acesso inválido."
                 },
                 "success": {
-                    "accessCodeSent": "Código enviado com sucesso.",
                     "signInSuccess": "Sessão iniciada com sucesso!",
                     "validAccessCode": "Código de acesso válido.",
                     "passwordSet": "Password definida com sucesso."
@@ -41,6 +41,7 @@
     "signIn": {
         "signIn": "Iniciar sessão",
         "description": "Escolha uma opção para iniciar sessão.",
+        "createAccountPrompt": "Não tem conta? Criar conta",
         "signInInfo": "Iniciar sessão com email e password",
         "signInCode": "Iniciar sessão com código de acesso",
         "signInPathInfo": "Introduza o seu email e password para continuar.",
@@ -51,6 +52,8 @@
     },
     "signUp": {
         "signUp": "Criar conta",
-        "description": "Introduza o seu email para continuar."
+        "description": "Introduza o seu email para continuar.",
+        "confirmationTitle": "Verifique o seu email",
+        "confirmationMessage": "Irá receber um código no email que indicou para concluir a criação da conta."
     }
 }
