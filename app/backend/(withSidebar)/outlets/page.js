@@ -1940,6 +1940,7 @@ export default function OutletsPage() {
 
       {editingReservationItem && (
         <ItemModal
+          key={`${editingReservationItem.item.outlet_item_id}-${editingReservationItem.assignmentIndex}`}
           item={editingReservationItem.item}
           reservationAssignment
           shiftOptions={reservationShifts}

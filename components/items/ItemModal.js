@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 function isEnabled(value) {
   return value === true || value === 1 || value === "1";
@@ -50,24 +50,78 @@ export default function ItemModal({
     ...Object.fromEntries(
       campaignFields.map(([field]) => [field, isEnabled(item[field])])
     ),
+    ...Object.fromEntries(
+      campaignFields.map(([field]) => [
+        `${field}_campaign_id`,
+        item[`${field}_campaign_id`] == null
+          ? ""
+          : String(item[`${field}_campaign_id`]),
+      ])
+    ),
     shift_index: String(
       shiftOptions.some((shift) => shift.shift_index === initialShiftIndex)
         ? initialShiftIndex
         : shiftOptions[0]?.shift_index ?? ""
     ),
   });
+  const [staychatCampaigns, setStaychatCampaigns] = useState([]);
+  const [loadingStaychatCampaigns, setLoadingStaychatCampaigns] = useState(true);
+  const [staychatCampaignsError, setStaychatCampaignsError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStaychatCampaigns() {
+      try {
+        const response = await fetch("/api/staychatCampaigns");
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(
+            data.error || "Não foi possível carregar as campanhas Staychat."
+          );
+        }
+        if (!Array.isArray(data)) {
+          throw new Error("A lista de campanhas Staychat é inválida.");
+        }
+        if (!cancelled) setStaychatCampaigns(data);
+      } catch (loadError) {
+        if (!cancelled) {
+          setStaychatCampaignsError(
+            loadError.message ||
+              "Não foi possível carregar as campanhas Staychat."
+          );
+        }
+      } finally {
+        if (!cancelled) setLoadingStaychatCampaigns(false);
+      }
+    }
+
+    loadStaychatCampaigns();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const showStaychatToggle =
     (isProduct && form.order) ||
     (reservationAssignment && form.order) ||
     (!isProduct && !reservationAssignment && campaignFields.length > 0);
+  const staychatEnabled =
+    form.sendStaychat &&
+    ((!isProduct && !reservationAssignment) || form.order);
 
   function handleChange(event) {
     const { name, value, type, checked } = event.target;
     setForm((currentForm) => ({
       ...currentForm,
       [name]: type === "checkbox" ? checked : value,
+      ...(type === "checkbox" &&
+      !checked &&
+      campaignFields.some(([field]) => field === name)
+        ? { [`${name}_campaign_id`]: "" }
+        : {}),
       ...(name === "order" && !checked ? { sendStaychat: false } : {}),
     }));
   }
@@ -119,6 +173,16 @@ export default function ItemModal({
       return;
     }
 
+    const missingCampaign = campaignFields.find(
+      ([field]) => form[field] && !form[`${field}_campaign_id`]
+    );
+    if (staychatEnabled && missingCampaign) {
+      setError(
+        `Selecione uma campanha Staychat para "${missingCampaign[1]}".`
+      );
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -158,10 +222,18 @@ export default function ItemModal({
           ...(!isProduct && !reservationAssignment && campaignFields.length > 0
             ? { sendStaychat: form.sendStaychat }
             : {}),
-          ...(form.sendStaychat && campaignFields.length > 0
+          ...(staychatEnabled && campaignFields.length > 0
             ? {
                 campaigns: Object.fromEntries(
                   campaignFields.map(([field]) => [field, form[field]])
+                ),
+                campaignIds: Object.fromEntries(
+                  campaignFields.map(([field]) => [
+                    field,
+                    form[field]
+                      ? Number(form[`${field}_campaign_id`])
+                      : null,
+                  ])
                 ),
               }
             : {}),
@@ -386,17 +458,22 @@ export default function ItemModal({
               </span>
             </label>
           )}
-          {form.sendStaychat && campaignFields.length > 0 && (
+          {staychatEnabled && campaignFields.length > 0 && (
             <fieldset className="flex flex-col gap-2 rounded-lg border border-red-100 bg-red-50/50 p-3">
               <legend className="px-1 text-sm font-bold text-gray-700">
                 Campanhas Staychat
               </legend>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {campaignFields.map(([field, label]) => (
-                  <label
-                    key={field}
-                    className="flex cursor-pointer items-center gap-2 text-sm text-gray-700"
-                  >
+              {staychatCampaignsError && (
+                <p role="alert" className="text-sm text-red-700">
+                  {staychatCampaignsError}
+                </p>
+              )}
+              {campaignFields.map(([field, label]) => (
+                <div
+                  key={field}
+                  className="grid gap-2 rounded-lg border border-red-100 bg-white p-3"
+                >
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
                     <input
                       type="checkbox"
                       name={field}
@@ -407,8 +484,40 @@ export default function ItemModal({
                     />
                     {label}
                   </label>
+                  {form[field] && (
+                    <label className="flex flex-col gap-1 text-xs font-medium text-gray-600">
+                      Campanha associada
+                      <select
+                        name={`${field}_campaign_id`}
+                        value={form[`${field}_campaign_id`]}
+                        onChange={handleChange}
+                        disabled={isSaving || loadingStaychatCampaigns}
+                        className="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm font-normal text-gray-900 disabled:bg-gray-100"
+                      >
+                        <option value="">
+                          {loadingStaychatCampaigns
+                            ? "A carregar campanhas..."
+                            : "Selecione uma campanha"}
+                        </option>
+                        {staychatCampaigns.map((campaign) => (
+                          <option
+                            key={campaign.staychat_campaign_id}
+                            value={campaign.staychat_campaign_id}
+                          >
+                            {campaign.campaign_name} ({campaign.campaign_id})
+                          </option>
+                        ))}
+                      </select>
+                      {!loadingStaychatCampaigns &&
+                        staychatCampaigns.length === 0 && (
+                          <span className="font-normal text-red-600">
+                            Não existem campanhas registadas.
+                          </span>
+                        )}
+                    </label>
+                  )}
+                </div>
                 ))}
-              </div>
             </fieldset>
           )}
         </div>

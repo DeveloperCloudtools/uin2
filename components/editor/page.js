@@ -922,6 +922,7 @@ export default function Editor({
         sendStaychat: item.sendStaychat,
         checkin: item.checkin,
         campaigns: item.campaigns,
+        campaignIds: item.campaignIds,
       }),
       }
     );
@@ -1894,6 +1895,7 @@ export default function Editor({
       {editingProductId !== null && (
         editingProduct ? (
           <ItemModal
+           key={editingProduct.outlet_item_id}
             item={editingProduct}
             onClose={() => {
               setEditingProductId(null);

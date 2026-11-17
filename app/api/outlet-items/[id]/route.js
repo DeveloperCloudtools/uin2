@@ -72,19 +72,63 @@ export async function PATCH(request, context) {
           { status: 400 }
         );
       }
+      const campaignIds = body.campaignIds;
+      if (
+        !campaignIds ||
+        typeof campaignIds !== "object" ||
+        Array.isArray(campaignIds)
+      ) {
+        return Response.json(
+          { error: "Indique as campanhas associadas aos estados do item." },
+          { status: 400 }
+        );
+      }
       if (
         campaignFields.length === 0 ||
         Object.keys(campaigns).length !== campaignFields.length ||
+        Object.keys(campaignIds).length !== campaignFields.length ||
         campaignFields.some((field) => typeof campaigns[field] !== "boolean") ||
-        Object.keys(campaigns).some((field) => !campaignFields.includes(field))
+        campaignFields.some(
+          (field) =>
+            (campaigns[field] &&
+              (!Number.isSafeInteger(campaignIds[field]) ||
+                campaignIds[field] <= 0)) ||
+            (!campaigns[field] && campaignIds[field] !== null)
+        ) ||
+        Object.keys(campaigns).some((field) => !campaignFields.includes(field)) ||
+        Object.keys(campaignIds).some((field) => !campaignFields.includes(field))
       ) {
         return Response.json(
-          { error: "As campanhas não correspondem ao tipo deste item." },
+          { error: "Selecione uma campanha para cada estado ativo do item." },
           { status: 400 }
         );
       }
 
-      campaignData = campaigns;
+      const selectedCampaignIds = [
+        ...new Set(Object.values(campaignIds).filter((value) => value !== null)),
+      ];
+      if (selectedCampaignIds.length > 0) {
+        const existingCampaigns = await prisma.staychatCampaigns.findMany({
+          where: { staychat_campaign_id: { in: selectedCampaignIds } },
+          select: { staychat_campaign_id: true },
+        });
+        if (existingCampaigns.length !== selectedCampaignIds.length) {
+          return Response.json(
+            { error: "Uma ou mais campanhas selecionadas já não existem." },
+            { status: 400 }
+          );
+        }
+      }
+
+      campaignData = {
+        ...campaigns,
+        ...Object.fromEntries(
+          campaignFields.map((field) => [
+            `${field}_campaign_id`,
+            campaignIds[field],
+          ])
+        ),
+      };
     }
 
     if (!currentItem.is_reservation_item) {
