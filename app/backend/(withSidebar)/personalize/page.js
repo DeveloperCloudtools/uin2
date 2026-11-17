@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Topbar from "@/components/layout/Topbar";
+import { LuImage, LuRefreshCw, LuUpload, LuX } from "react-icons/lu";
 
 export default function PersonalizePage() {
   const [form, setForm] = useState({
@@ -23,6 +25,18 @@ export default function PersonalizePage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showImageLibrary, setShowImageLibrary] = useState(false);
+  const [imageLibraryField, setImageLibraryField] = useState(null);
+  const [imageLibrary, setImageLibrary] = useState([]);
+  const [imageLibrarySearch, setImageLibrarySearch] = useState("");
+  const [isLoadingImageLibrary, setIsLoadingImageLibrary] = useState(false);
+  const [imageLibraryError, setImageLibraryError] = useState("");
+
+  const filteredLibraryImages = imageLibrary.filter((image) =>
+    (image.key.split("/").pop() || image.key)
+      .toLowerCase()
+      .includes(imageLibrarySearch.trim().toLowerCase())
+  );
 
   // ---------------- FETCH ----------------
 
@@ -111,6 +125,44 @@ export default function PersonalizePage() {
         [field]: data.url,
       }));
     }
+  }
+
+  async function openImageLibrary(field) {
+    setImageLibraryField(field);
+    setShowImageLibrary(true);
+    setIsLoadingImageLibrary(true);
+    setImageLibraryError("");
+
+    try {
+      const response = await fetch("/api/images");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || "Não foi possível carregar o arquivo de imagens."
+        );
+      }
+
+      setImageLibrary(data);
+    } catch (error) {
+      console.error(error);
+      setImageLibraryError(
+        error.message || "Não foi possível carregar o arquivo de imagens."
+      );
+    } finally {
+      setIsLoadingImageLibrary(false);
+    }
+  }
+
+  function selectLibraryImage(image) {
+    if (!imageLibraryField) return;
+
+    setForm((previousForm) => ({
+      ...previousForm,
+      [imageLibraryField]: image.url,
+    }));
+    setShowImageLibrary(false);
+    setImageLibraryField(null);
   }
 
   // ---------------- SAVE ----------------
@@ -343,6 +395,9 @@ export default function PersonalizePage() {
                   uploadImage(file, "background_image")
                 }
                 onRemove={() => removeImage("background_image")}
+                onChooseFromLibrary={() =>
+                  openImageLibrary("background_image")
+                }
               />
             </Section>
           )}
@@ -353,6 +408,7 @@ export default function PersonalizePage() {
               value={form.logo}
               onUpload={(file) => uploadImage(file, "logo")}
               onRemove={() => removeImage("logo")}
+              onChooseFromLibrary={() => openImageLibrary("logo")}
             />
           </Section>
 
@@ -367,6 +423,109 @@ export default function PersonalizePage() {
 
         </form>
       </div>
+
+      {showImageLibrary && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="personalize-image-library-title"
+            className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+          >
+            <header className="flex items-center justify-between gap-4 border-b border-gray-200 px-5 py-4">
+              <div>
+                <h2
+                  id="personalize-image-library-title"
+                  className="text-lg font-semibold text-gray-900"
+                >
+                  Escolher do arquivo de imagens
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Selecione a imagem para{" "}
+                  {imageLibraryField === "logo" ? "o logótipo" : "o fundo"}.
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openImageLibrary(imageLibraryField)}
+                  disabled={isLoadingImageLibrary}
+                  aria-label="Atualizar arquivo de imagens"
+                  className="rounded-lg p-2 text-gray-600 transition hover:bg-gray-100 disabled:opacity-50"
+                >
+                  <LuRefreshCw
+                    aria-hidden="true"
+                    className={`h-5 w-5 ${isLoadingImageLibrary ? "animate-spin" : ""}`}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowImageLibrary(false);
+                    setImageLibraryField(null);
+                  }}
+                  aria-label="Fechar arquivo de imagens"
+                  className="rounded-lg p-2 text-gray-600 transition hover:bg-gray-100"
+                >
+                  <LuX aria-hidden="true" className="h-5 w-5" />
+                </button>
+              </div>
+            </header>
+
+            <div className="min-h-0 overflow-y-auto p-5">
+              <input
+                type="search"
+                value={imageLibrarySearch}
+                onChange={(event) => setImageLibrarySearch(event.target.value)}
+                placeholder="Pesquisar imagens..."
+                className="mb-4 h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-red-500"
+              />
+
+              {imageLibraryError ? (
+                <p role="alert" className="py-12 text-center text-sm text-red-600">
+                  {imageLibraryError}
+                </p>
+              ) : isLoadingImageLibrary ? (
+                <p className="py-12 text-center text-sm text-gray-500">
+                  A carregar imagens...
+                </p>
+              ) : imageLibrary.length === 0 ? (
+                <p className="py-12 text-center text-sm text-gray-500">
+                  Não existem imagens no arquivo.
+                </p>
+              ) : filteredLibraryImages.length === 0 ? (
+                <p className="py-12 text-center text-sm text-gray-500">
+                  Nenhuma imagem corresponde à pesquisa.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                  {filteredLibraryImages.map((image) => (
+                    <button
+                      key={image.key}
+                      type="button"
+                      onClick={() => selectLibraryImage(image)}
+                      title={image.key}
+                      className="overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition hover:border-red-400 hover:ring-2 hover:ring-red-100 focus:outline-none focus:ring-2 focus:ring-red-400"
+                    >
+                      <Image
+                        src={image.url}
+                        alt={image.key.split("/").pop() || image.key}
+                        width={320}
+                        height={220}
+                        unoptimized
+                        className="h-36 w-full bg-gray-50 object-contain"
+                      />
+                      <span className="block truncate border-t border-gray-100 px-3 py-2 text-sm text-gray-700">
+                        {image.key.split("/").pop() || image.key}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
@@ -384,57 +543,44 @@ function Section({ title, children }) {
   );
 }
 
-function ImageUpload({ value, onUpload, onRemove }) {
+function ImageUpload({ value, onUpload, onRemove, onChooseFromLibrary }) {
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap gap-2">
+        <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-gray-300 px-3 text-sm text-gray-700 transition hover:bg-gray-50">
+          <LuUpload aria-hidden="true" className="h-4 w-4" />
+          Carregar imagem
+          <input
+            type="file"
+            accept=".png,.jpg,.jpeg,.webp,image/*"
+            className="sr-only"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
 
-      <label
-        className="
-          border-2 border-dashed border-gray-300
-          rounded-2xl
-          p-6
-          cursor-pointer
-          hover:border-red-400
-          hover:bg-red-50
-          transition
-          flex flex-col items-center justify-center
-          text-center
-        "
-      >
-        <div className="text-4xl mb-2">🖼️</div>
+              if (file.size > 850 * 1024) {
+                alert("A imagem não pode exceder 850 KB.");
+                event.target.value = "";
+                return;
+              }
 
-        <span className="font-medium text-gray-700">
-          Clique para selecionar uma imagem
-        </span>
-
-        <span className="text-sm text-gray-500 mt-1">
-          PNG, JPG, JPEG ou WEBP
-        </span>
-
-        <span className="text-xs text-gray-400 mt-2">
-          Tamanho máximo: 850 KB
-        </span>
-
-        <input
-          type="file"
-          accept=".png,.jpg,.jpeg,.webp,image/*"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-
-            if (!file) return;
-
-            if (file.size > 850 * 1024) {
-              alert(
-                "A imagem não pode exceder 850 KB."
-              );
-              return;
-            }
-
-            onUpload(file);
-          }}
-        />
-      </label>
+              onUpload(file);
+              event.target.value = "";
+            }}
+          />
+        </label>
+        <button
+          type="button"
+          onClick={onChooseFromLibrary}
+          className="inline-flex h-10 items-center gap-2 rounded-lg border border-gray-300 px-3 text-sm text-gray-700 transition hover:bg-gray-50"
+        >
+          <LuImage aria-hidden="true" className="h-4 w-4" />
+          Escolher do arquivo
+        </button>
+      </div>
+      <p className="text-xs text-gray-500">
+        PNG, JPG, JPEG ou WEBP. Upload até 850 KB.
+      </p>
 
       {value && (
         <div
@@ -447,13 +593,16 @@ function ImageUpload({ value, onUpload, onRemove }) {
             w-fit
           "
         >
-          <img
+          <Image
             src={value}
-            alt="Preview"
+            alt="Pré-visualização da imagem"
+            width={400}
+            height={240}
+            unoptimized
             className="
               max-h-48
               min-w-[250px]
-              object-cover
+              object-contain
             "
           />
 
