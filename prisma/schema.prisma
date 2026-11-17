@@ -391,53 +391,62 @@ model typologies {
 }
 
 model OutletItems {
-  outlet_item_id        Int            @id @default(autoincrement())
-  item_id               Int
-  outlet_id             Int
-  item_name1            String?        @db.VarChar(150)
-  item_name2            String?        @db.VarChar(150)
-  item_name3            String?        @db.VarChar(150)
-  item_name4            String?        @db.VarChar(150)
-  item_name5            String?        @db.VarChar(150)
-  item_description1     String?        @db.VarChar(150)
-  item_description2     String?        @db.VarChar(150)
-  item_description3     String?        @db.VarChar(150)
-  item_description4     String?        @db.VarChar(150)
-  item_description5     String?        @db.VarChar(150)
-  item_image_url        String?        @db.VarChar(150)
-  item_type             String?        @db.VarChar(45)
-  item_price            Decimal?       @db.Decimal(10, 2)
-  reservation           String?        @db.VarChar(1)
-  checkin               String?        @db.VarChar(1)
-  room                  String?        @db.VarChar(1)
-  instantOrder          String?        @db.VarChar(1)
-  sendStaychat          String?        @db.VarChar(1)
-  staychatWebhook       String?        @db.VarChar(255)
-  visiblePrice          String?        @db.VarChar(1)
-  allowReservations     String?        @db.VarChar(1)
-  scheduleID            String?        @db.VarChar(1)
-  preparation           Json?
-  created_at            DateTime?      @default(now()) @db.Timestamp(0)
-  updated_at            DateTime?      @default(now()) @db.Timestamp(0)
-  item_vat              String?        @db.VarChar(45)
-  item_duration         Int?
-  schedule_id           Int?
-  shift_index           Int?
-  is_reservation_item   Boolean        @default(false)
-  cart                  Boolean        @default(false)
-  takeaway_order        Boolean        @default(false)
-  order                 Boolean        @default(false)
-  product_accept        Boolean?       @default(false)
-  product_in_progress   Boolean?       @default(false)
-  product_completed     Boolean?       @default(false)
-  product_cancelled     Boolean?       @default(false)
-  service_confirmed     Boolean?       @default(false)
-  service_modified      Boolean?       @default(false)
-  service_cancelled     Boolean?       @default(false)
-  reservation_confirmed Boolean?       @default(false)
-  reservation_cancelled Boolean?       @default(false)
-  Items                 Items          @relation(fields: [item_id], references: [item_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_outlet_items_item")
-  Reservations          Reservations[]
+  outlet_item_id                    Int            @id @default(autoincrement())
+  item_id                           Int
+  outlet_id                         Int
+  item_name1                        String?        @db.VarChar(150)
+  item_name2                        String?        @db.VarChar(150)
+  item_name3                        String?        @db.VarChar(150)
+  item_name4                        String?        @db.VarChar(150)
+  item_name5                        String?        @db.VarChar(150)
+  item_description1                 String?        @db.VarChar(150)
+  item_description2                 String?        @db.VarChar(150)
+  item_description3                 String?        @db.VarChar(150)
+  item_description4                 String?        @db.VarChar(150)
+  item_description5                 String?        @db.VarChar(150)
+  item_image_url                    String?        @db.VarChar(150)
+  item_type                         String?        @db.VarChar(45)
+  item_price                        Decimal?       @db.Decimal(10, 2)
+  reservation                       String?        @db.VarChar(1)
+  checkin                           String?        @db.VarChar(1)
+  room                              String?        @db.VarChar(1)
+  instantOrder                      String?        @db.VarChar(1)
+  sendStaychat                      String?        @db.VarChar(1)
+  staychatWebhook                   String?        @db.VarChar(255)
+  visiblePrice                      String?        @db.VarChar(1)
+  allowReservations                 String?        @db.VarChar(1)
+  scheduleID                        String?        @db.VarChar(1)
+  preparation                       Json?
+  created_at                        DateTime?      @default(now()) @db.Timestamp(0)
+  updated_at                        DateTime?      @default(now()) @db.Timestamp(0)
+  item_vat                          String?        @db.VarChar(45)
+  item_duration                     Int?
+  schedule_id                       Int?
+  shift_index                       Int?
+  is_reservation_item               Boolean        @default(false)
+  cart                              Boolean        @default(false)
+  takeaway_order                    Boolean        @default(false)
+  order                             Boolean        @default(false)
+  product_accept                    Boolean?       @default(false)
+  product_accept_campaign_id        Int?
+  product_in_progress               Boolean?       @default(false)
+  product_in_progress_campaign_id   Int?
+  product_completed                 Boolean?       @default(false)
+  product_completed_campaign_id     Int?
+  product_cancelled                 Boolean?       @default(false)
+  product_cancelled_campaign_id     Int?
+  service_confirmed                 Boolean?       @default(false)
+  service_confirmed_campaign_id     Int?
+  service_modified                  Boolean?       @default(false)
+  service_modified_campaign_id      Int?
+  service_cancelled                 Boolean?       @default(false)
+  service_cancelled_campaign_id     Int?
+  reservation_confirmed             Boolean?       @default(false)
+  reservation_confirmed_campaign_id Int?
+  reservation_cancelled             Boolean?       @default(false)
+  reservation_cancelled_campaign_id Int?
+  Items                             Items          @relation(fields: [item_id], references: [item_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_outlet_items_item")
+  Reservations                      Reservations[]
 
   @@index([item_id], map: "idx_outlet_items_item_id")
   @@index([outlet_id], map: "idx_outlet_items_outlet_id")
@@ -532,16 +541,9 @@ model ReservationTableAllocations {
 }
 
 model StaychatCampaigns {
-  staychat_campaign_id  Int       @id @default(autoincrement())
-  product_accept        String?   @db.VarChar(200)
-  product_in_progress   String?   @db.VarChar(200)
-  product_completed     String?   @db.VarChar(200)
-  product_cancelled     String?   @db.VarChar(200)
-  service_confirmed     String?   @db.VarChar(200)
-  service_modified      String?   @db.VarChar(200)
-  service_cancelled     String?   @db.VarChar(200)
-  reservation_confirmed String?   @db.VarChar(200)
-  reservation_cancelled String?   @db.VarChar(200)
-  createdAt             DateTime? @default(now()) @db.Timestamp(0)
-  updatedAt             DateTime? @default(now()) @db.Timestamp(0)
+  staychat_campaign_id Int       @id @default(autoincrement())
+  campaign_name        String?   @db.VarChar(200)
+  campaign_id          String?   @db.VarChar(200)
+  createdAt            DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt            DateTime? @default(now()) @db.Timestamp(0)
 }

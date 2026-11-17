@@ -84,10 +84,6 @@ const staychatCampaignsByItemType = Object.fromEntries(
   ])
 );
 
-const emptyStaychatCampaigns = Object.fromEntries(
-  staychatCampaignFields.map(([name]) => [name, ""])
-);
-
 function toChatbotFormSettings(settings) {
   return {
     active: settings.active ?? emptyChatbotSettings.active,
@@ -125,7 +121,12 @@ export default function AdvancedConfigurationsPage() {
   const [templates, setTemplates] = useState([]);
   const [templateForm, setTemplateForm] = useState(emptyTemplate);
   const [chatbotSettings, setChatbotSettings] = useState(emptyChatbotSettings);
-  const [staychatCampaigns, setStaychatCampaigns] = useState(emptyStaychatCampaigns);
+  const [staychatCampaigns, setStaychatCampaigns] = useState([]);
+  const [campaignForm, setCampaignForm] = useState({
+    campaign_name: "",
+    campaign_id: "",
+  });
+  const [editingStaychatCampaignId, setEditingStaychatCampaignId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [activeLanguage, setActiveLanguage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -168,6 +169,10 @@ export default function AdvancedConfigurationsPage() {
           fetch("/api/staychatCampaigns"),
         ]);
 
+        if (!campaignsResponse.ok) {
+          throw new Error("Não foi possível carregar as campanhas Staychat.");
+        }
+
         const settingsData = await settingsResponse.json();
         const templatesData = await templatesResponse.json();
         const chatbotData = await chatbotResponse.json();
@@ -189,17 +194,7 @@ export default function AdvancedConfigurationsPage() {
           setChatbotSettings(toChatbotFormSettings(chatbotData));
         }
 
-        if (campaignsData) {
-          setStaychatCampaigns({
-            ...emptyStaychatCampaigns,
-            ...Object.fromEntries(
-              staychatCampaignFields.map(([name]) => [
-                name,
-                campaignsData[name] || "",
-              ])
-            ),
-          });
-        }
+        setStaychatCampaigns(Array.isArray(campaignsData) ? campaignsData : []);
       } catch (error) {
         setMessageType("error");
         setMessage("Não foi possível carregar as configurações.");
@@ -368,16 +363,25 @@ export default function AdvancedConfigurationsPage() {
     }
   }
 
-  function updateStaychatCampaigns(event) {
+  function updateCampaignForm(event) {
     const { name, value } = event.target;
-
-    setStaychatCampaigns((current) => ({
-      ...current,
-      [name]: value,
-    }));
+    setCampaignForm((current) => ({ ...current, [name]: value }));
   }
 
-  async function saveStaychatCampaigns(event) {
+  function resetCampaignForm() {
+    setCampaignForm({ campaign_name: "", campaign_id: "" });
+    setEditingStaychatCampaignId(null);
+  }
+
+  function editStaychatCampaign(campaign) {
+    setCampaignForm({
+      campaign_name: campaign.campaign_name || "",
+      campaign_id: campaign.campaign_id || "",
+    });
+    setEditingStaychatCampaignId(campaign.staychat_campaign_id);
+  }
+
+  async function saveStaychatCampaign(event) {
     event.preventDefault();
 
     setSavingStaychatCampaigns(true);
@@ -385,34 +389,68 @@ export default function AdvancedConfigurationsPage() {
     setMessageType("");
 
     try {
-      const response = await fetch("/api/staychatCampaigns", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(staychatCampaigns),
+      const response = await fetch(
+        editingStaychatCampaignId
+          ? `/api/staychatCampaigns/${editingStaychatCampaignId}`
+          : "/api/staychatCampaigns",
+        {
+          method: editingStaychatCampaignId ? "PUT" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(campaignForm),
+        }
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Não foi possível guardar a campanha Staychat.");
+      }
+
+      setStaychatCampaigns((current) =>
+        editingStaychatCampaignId
+          ? current.map((campaign) =>
+              campaign.staychat_campaign_id === editingStaychatCampaignId
+                ? data
+                : campaign
+            )
+          : [...current, data]
+      );
+      resetCampaignForm();
+      setMessageType("success");
+      setMessage("Campanha Staychat guardada com sucesso.");
+    } catch (error) {
+      setMessageType("error");
+      setMessage(
+        error.message || "Não foi possível guardar a campanha Staychat."
+      );
+    } finally {
+      setSavingStaychatCampaigns(false);
+    }
+  }
+
+  async function deleteStaychatCampaign(id) {
+    if (!window.confirm("Eliminar esta campanha Staychat?")) return;
+
+    try {
+      const response = await fetch(`/api/staychatCampaigns/${id}`, {
+        method: "DELETE",
       });
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Não foi possível guardar as campanhas Staychat.");
+        throw new Error(data.error || "Não foi possível eliminar a campanha.");
       }
 
-      setStaychatCampaigns({
-        ...emptyStaychatCampaigns,
-        ...Object.fromEntries(
-          staychatCampaignFields.map(([name]) => [name, data[name] || ""])
-        ),
-      });
+      setStaychatCampaigns((current) =>
+        current.filter((campaign) => campaign.staychat_campaign_id !== id)
+      );
+      if (editingStaychatCampaignId === id) resetCampaignForm();
       setMessageType("success");
-      setMessage("Campanhas Staychat guardadas com sucesso.");
+      setMessage("Campanha Staychat eliminada.");
     } catch (error) {
       setMessageType("error");
-      setMessage(
-        error.message || "Não foi possível guardar as campanhas Staychat."
-      );
-    } finally {
-      setSavingStaychatCampaigns(false);
+      setMessage(error.message || "Não foi possível eliminar a campanha.");
     }
   }
 
@@ -1010,7 +1048,7 @@ export default function AdvancedConfigurationsPage() {
             <div className="flex items-start justify-between gap-4">
               <SectionTitle
                 title="Campanhas Staychat"
-                description="Configure os IDs das campanhas usadas nos diferentes estados de produtos, serviços e reservas."
+                description="Adicione e gira as campanhas Staychat disponíveis."
               />
               <button
                 type="button"
@@ -1021,40 +1059,98 @@ export default function AdvancedConfigurationsPage() {
               </button>
             </div>
 
-            <form
-              onSubmit={saveStaychatCampaigns}
-              className="mt-5 grid gap-5"
-            >
-              {staychatCampaignSections.map(([sectionTitle, , fields]) => (
-                <div key={sectionTitle}>
-                  <h3 className="mb-3 text-sm font-semibold text-gray-800">
-                    {sectionTitle}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                    {fields.map(([name, label]) => (
-                      <Field
-                        key={name}
-                        label={label}
-                        name={name}
-                        value={staychatCampaigns[name]}
-                        onChange={updateStaychatCampaigns}
-                        maxLength={200}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              <div className="flex justify-end pt-2">
+            <form onSubmit={saveStaychatCampaign} className="mt-5 grid gap-4 sm:grid-cols-2">
+              <Field
+                label="Nome"
+                name="campaign_name"
+                value={campaignForm.campaign_name}
+                onChange={updateCampaignForm}
+                maxLength={200}
+                required
+              />
+              <Field
+                label="Campaign ID"
+                name="campaign_id"
+                value={campaignForm.campaign_id}
+                onChange={updateCampaignForm}
+                maxLength={200}
+                required
+              />
+              <div className="flex flex-wrap justify-end gap-3 sm:col-span-2">
+                {editingStaychatCampaignId && (
+                  <button
+                    type="button"
+                    onClick={resetCampaignForm}
+                    disabled={savingStaychatCampaigns}
+                    className="rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    Cancelar edição
+                  </button>
+                )}
                 <button
                   type="submit"
                   disabled={savingStaychatCampaigns}
                   className="flex rounded-xl bg-gradient-to-r from-red-600 to-red-500 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-red-200 transition hover:-translate-y-0.5 hover:from-red-700 hover:to-red-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {savingStaychatCampaigns ? "A guardar..." : "Guardar campanhas"}
+                  {savingStaychatCampaigns
+                    ? "A guardar..."
+                    : editingStaychatCampaignId
+                      ? "Guardar alterações"
+                      : "Adicionar campanha"}
                 </button>
               </div>
             </form>
+
+            <div className="mt-6 overflow-x-auto rounded-xl border border-gray-200">
+              <table className="w-full min-w-[560px] text-left text-sm">
+                <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Nome</th>
+                    <th className="px-4 py-3 font-semibold">Campaign ID</th>
+                    <th className="px-4 py-3 text-right font-semibold">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {staychatCampaigns.map((campaign) => (
+                    <tr key={campaign.staychat_campaign_id}>
+                      <td className="px-4 py-3 text-gray-800">
+                        {campaign.campaign_name}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {campaign.campaign_id}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-3">
+                          <button
+                            type="button"
+                            onClick={() => editStaychatCampaign(campaign)}
+                            className="font-medium text-red-600 hover:text-red-700"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              deleteStaychatCampaign(campaign.staychat_campaign_id)
+                            }
+                            className="font-medium text-gray-500 hover:text-red-600"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {staychatCampaigns.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                        Ainda não existem campanhas. Adicione a primeira acima.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </section>
         )}
 
