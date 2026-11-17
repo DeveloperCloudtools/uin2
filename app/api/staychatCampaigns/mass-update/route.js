@@ -33,16 +33,23 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const fields = body?.campaignFields;
+    const assignments = body?.campaignAssignments;
     const itemIds = body?.outletItemIds;
 
     if (
-      !Array.isArray(fields) ||
-      fields.length === 0 ||
-      fields.some((field) => !campaignFields.includes(field))
+      !assignments ||
+      typeof assignments !== "object" ||
+      Array.isArray(assignments) ||
+      Object.keys(assignments).length === 0 ||
+      Object.entries(assignments).some(
+        ([field, campaignId]) =>
+          !campaignFields.includes(field) ||
+          !Number.isSafeInteger(campaignId) ||
+          campaignId <= 0
+      )
     ) {
       return Response.json(
-        { error: "Selecione pelo menos uma campanha válida." },
+        { error: "Selecione estados válidos e associe uma campanha a cada um." },
         { status: 400 }
       );
     }
@@ -55,6 +62,18 @@ export async function POST(request) {
     ) {
       return Response.json(
         { error: "Selecione pelo menos um item válido." },
+        { status: 400 }
+      );
+    }
+
+    const campaignIds = [...new Set(Object.values(assignments))];
+    const existingCampaigns = await prisma.staychatCampaigns.findMany({
+      where: { staychat_campaign_id: { in: campaignIds } },
+      select: { staychat_campaign_id: true },
+    });
+    if (existingCampaigns.length !== campaignIds.length) {
+      return Response.json(
+        { error: "Uma ou mais campanhas selecionadas já não existem." },
         { status: 400 }
       );
     }
@@ -73,14 +92,17 @@ export async function POST(request) {
       for (const [itemType, supportedFields] of Object.entries(
         campaignsByItemType
       )) {
-        const applicableFields = fields.filter((field) =>
-          supportedFields.includes(field)
+        const applicableAssignments = Object.entries(assignments).filter(
+          ([field]) => supportedFields.includes(field)
         );
         const matchingItemIds = selectedItems
           .filter((item) => item.item_type === itemType)
           .map((item) => item.outlet_item_id);
 
-        if (applicableFields.length === 0 || matchingItemIds.length === 0) {
+        if (
+          applicableAssignments.length === 0 ||
+          matchingItemIds.length === 0
+        ) {
           continue;
         }
 
@@ -91,7 +113,10 @@ export async function POST(request) {
             item_type: itemType,
           },
           data: Object.fromEntries(
-            applicableFields.map((field) => [field, true])
+            applicableAssignments.flatMap(([field, campaignId]) => [
+              [field, true],
+              [`${field}_campaign_id`, campaignId],
+            ])
           ),
         });
         totalUpdated += result.count;

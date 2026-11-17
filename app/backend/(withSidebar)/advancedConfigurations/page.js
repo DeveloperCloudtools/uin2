@@ -136,7 +136,7 @@ export default function AdvancedConfigurationsPage() {
   const [savingStaychatCampaigns, setSavingStaychatCampaigns] = useState(false);
   const [showMassUpdateModal, setShowMassUpdateModal] = useState(false);
   const [massUpdateStep, setMassUpdateStep] = useState("campaigns");
-  const [selectedMassCampaigns, setSelectedMassCampaigns] = useState([]);
+  const [selectedMassCampaigns, setSelectedMassCampaigns] = useState({});
   const [massUpdateItems, setMassUpdateItems] = useState([]);
   const [selectedMassItemIds, setSelectedMassItemIds] = useState([]);
   const [loadingMassUpdateItems, setLoadingMassUpdateItems] = useState(false);
@@ -144,6 +144,7 @@ export default function AdvancedConfigurationsPage() {
   const [massUpdateError, setMassUpdateError] = useState("");
   const [showMassCleanupModal, setShowMassCleanupModal] = useState(false);
   const [massCleanupItems, setMassCleanupItems] = useState([]);
+  const [selectedCleanupCampaigns, setSelectedCleanupCampaigns] = useState([]);
   const [loadingMassCleanupItems, setLoadingMassCleanupItems] = useState(false);
   const [savingMassCleanup, setSavingMassCleanup] = useState(false);
   const [confirmedMassCleanup, setConfirmedMassCleanup] = useState(false);
@@ -154,10 +155,14 @@ export default function AdvancedConfigurationsPage() {
   const [associationItemsError, setAssociationItemsError] = useState("");
   const [editingCampaignItem, setEditingCampaignItem] = useState(null);
   const [editingItemCampaigns, setEditingItemCampaigns] = useState({});
+  const [editingItemCampaignIds, setEditingItemCampaignIds] = useState({});
   const [savingItemCampaigns, setSavingItemCampaigns] = useState(false);
   const [itemCampaignError, setItemCampaignError] = useState("");
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
+  const affectedCleanupItems = massCleanupItems.filter((item) =>
+    selectedCleanupCampaigns.some((field) => item.campaigns[field])
+  );
 
   useEffect(() => {
     async function loadData() {
@@ -456,7 +461,7 @@ export default function AdvancedConfigurationsPage() {
 
   function openMassUpdateModal() {
     setMassUpdateStep("campaigns");
-    setSelectedMassCampaigns([]);
+    setSelectedMassCampaigns({});
     setMassUpdateItems([]);
     setSelectedMassItemIds([]);
     setMassUpdateError("");
@@ -464,24 +469,60 @@ export default function AdvancedConfigurationsPage() {
   }
 
   function toggleMassCampaign(campaign) {
-    setSelectedMassCampaigns((current) =>
-      current.includes(campaign)
-        ? current.filter((value) => value !== campaign)
-        : [...current, campaign]
-    );
+    setSelectedMassCampaigns((current) => {
+      const next = { ...current };
+      if (Object.prototype.hasOwnProperty.call(next, campaign)) {
+        delete next[campaign];
+      } else {
+        next[campaign] = "";
+      }
+      return next;
+    });
   }
 
   function toggleAllMassCampaigns() {
     setSelectedMassCampaigns((current) =>
-      current.length === staychatCampaignFields.length
-        ? []
-        : staychatCampaignFields.map(([name]) => name)
+      Object.keys(current).length === staychatCampaignFields.length
+        ? {}
+        : Object.fromEntries(
+            staychatCampaignFields.map(([name]) => [name, ""])
+          )
     );
   }
 
+  function toggleCleanupCampaign(field) {
+    setConfirmedMassCleanup(false);
+    setSelectedCleanupCampaigns((current) =>
+      current.includes(field)
+        ? current.filter((value) => value !== field)
+        : [...current, field]
+    );
+  }
+
+  function toggleAllCleanupCampaigns() {
+    setConfirmedMassCleanup(false);
+    setSelectedCleanupCampaigns((current) =>
+      current.length === staychatCampaignFields.length
+        ? []
+        : staychatCampaignFields.map(([field]) => field)
+    );
+  }
+
+  function updateMassCampaignId(field, campaignId) {
+    setSelectedMassCampaigns((current) => ({
+      ...current,
+      [field]: campaignId,
+    }));
+  }
+
   async function loadMassUpdateItems() {
-    if (selectedMassCampaigns.length === 0) {
+    const selectedFields = Object.keys(selectedMassCampaigns);
+    if (selectedFields.length === 0) {
       setMassUpdateError("Selecione pelo menos uma campanha.");
+      return;
+    }
+    if (selectedFields.some((field) => !selectedMassCampaigns[field])) {
+      setMassUpdateError("Selecione a campanha a associar a cada estado ativo.");
       return;
     }
 
@@ -543,7 +584,7 @@ export default function AdvancedConfigurationsPage() {
     );
     const hasMatchingCampaign = [...selectedItemTypes].some((itemType) =>
       (staychatCampaignsByItemType[itemType] || []).some((field) =>
-        selectedMassCampaigns.includes(field)
+        Object.prototype.hasOwnProperty.call(selectedMassCampaigns, field)
       )
     );
     if (!hasMatchingCampaign) {
@@ -563,7 +604,12 @@ export default function AdvancedConfigurationsPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          campaignFields: selectedMassCampaigns,
+          campaignAssignments: Object.fromEntries(
+            Object.entries(selectedMassCampaigns).map(([field, campaignId]) => [
+              field,
+              Number(campaignId),
+            ])
+          ),
           outletItemIds: selectedMassItemIds,
         }),
       });
@@ -579,17 +625,29 @@ export default function AdvancedConfigurationsPage() {
         current.map((item) => {
           if (!selectedIds.has(item.outlet_item_id)) return item;
 
-          const applicableFields = selectedMassCampaigns.filter((field) =>
-            staychatCampaignsByItemType[item.item_type]?.includes(field)
+          const applicableAssignments = Object.entries(selectedMassCampaigns).filter(
+            ([field]) => staychatCampaignsByItemType[item.item_type]?.includes(field)
           );
           const campaigns = {
             ...item.campaigns,
-            ...Object.fromEntries(applicableFields.map((field) => [field, true])),
+            ...Object.fromEntries(
+              applicableAssignments.map(([field]) => [field, true])
+            ),
+          };
+          const campaignIds = {
+            ...item.campaignIds,
+            ...Object.fromEntries(
+              applicableAssignments.map(([field, campaignId]) => [
+                field,
+                Number(campaignId),
+              ])
+            ),
           };
 
           return {
             ...item,
             campaigns,
+            campaignIds,
             activeCampaigns: staychatCampaignFields
               .map(([field]) => field)
               .filter((field) => campaigns[field]),
@@ -612,6 +670,7 @@ export default function AdvancedConfigurationsPage() {
   async function openMassCleanupModal() {
     setShowMassCleanupModal(true);
     setMassCleanupItems([]);
+    setSelectedCleanupCampaigns(staychatCampaignFields.map(([field]) => field));
     setConfirmedMassCleanup(false);
     setMassCleanupError("");
     setLoadingMassCleanupItems(true);
@@ -637,7 +696,11 @@ export default function AdvancedConfigurationsPage() {
   }
 
   async function executeMassCleanup() {
-    if (!confirmedMassCleanup || massCleanupItems.length === 0) return;
+    if (
+      !confirmedMassCleanup ||
+      massCleanupItems.length === 0 ||
+      selectedCleanupCampaigns.length === 0
+    ) return;
 
     setSavingMassCleanup(true);
     setMassCleanupError("");
@@ -650,6 +713,7 @@ export default function AdvancedConfigurationsPage() {
         },
         body: JSON.stringify({
           outletItemIds: massCleanupItems.map((item) => item.outlet_item_id),
+          campaignFields: selectedCleanupCampaigns,
         }),
       });
       const data = await response.json();
@@ -660,17 +724,32 @@ export default function AdvancedConfigurationsPage() {
 
       setShowMassCleanupModal(false);
       const cleanedIds = new Set(
-        massCleanupItems.map((item) => item.outlet_item_id)
+        affectedCleanupItems.map((item) => item.outlet_item_id)
       );
       setAssociationItems((current) =>
         current.map((item) =>
           cleanedIds.has(item.outlet_item_id)
             ? {
                 ...item,
-                campaigns: Object.fromEntries(
-                  staychatCampaignFields.map(([field]) => [field, false])
-                ),
-                activeCampaigns: [],
+                campaigns: {
+                  ...item.campaigns,
+                  ...Object.fromEntries(
+                    selectedCleanupCampaigns.map((field) => [field, false])
+                  ),
+                },
+                campaignIds: {
+                  ...item.campaignIds,
+                  ...Object.fromEntries(
+                    selectedCleanupCampaigns.map((field) => [field, null])
+                  ),
+                },
+                activeCampaigns: staychatCampaignFields
+                  .map(([field]) => field)
+                  .filter(
+                    (field) =>
+                      item.campaigns[field] &&
+                      !selectedCleanupCampaigns.includes(field)
+                  ),
               }
             : item
         )
@@ -722,16 +801,45 @@ export default function AdvancedConfigurationsPage() {
         itemFields.map((field) => [field, item.campaigns?.[field] === true])
       )
     );
+    setEditingItemCampaignIds(
+      Object.fromEntries(
+        itemFields.map((field) => [
+          field,
+          item.campaignIds?.[field] == null
+            ? ""
+            : String(item.campaignIds[field]),
+        ])
+      )
+    );
     setItemCampaignError("");
   }
 
   function updateEditingItemCampaign(event) {
     const { name, checked } = event.target;
     setEditingItemCampaigns((current) => ({ ...current, [name]: checked }));
+    if (!checked) {
+      setEditingItemCampaignIds((current) => ({ ...current, [name]: "" }));
+    }
+  }
+
+  function updateEditingItemCampaignId(event) {
+    const { name, value } = event.target;
+    setEditingItemCampaignIds((current) => ({ ...current, [name]: value }));
   }
 
   async function saveItemCampaigns() {
     if (!editingCampaignItem) return;
+
+    const missingCampaign = Object.entries(editingItemCampaigns).find(
+      ([field, active]) => active && !editingItemCampaignIds[field]
+    );
+    if (missingCampaign) {
+      const label =
+        staychatCampaignFields.find(([field]) => field === missingCampaign[0])?.[1] ||
+        missingCampaign[0];
+      setItemCampaignError(`Selecione uma campanha para "${label}".`);
+      return;
+    }
 
     setSavingItemCampaigns(true);
     setItemCampaignError("");
@@ -742,7 +850,15 @@ export default function AdvancedConfigurationsPage() {
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ campaigns: editingItemCampaigns }),
+          body: JSON.stringify({
+            campaigns: editingItemCampaigns,
+            campaignIds: Object.fromEntries(
+              Object.entries(editingItemCampaigns).map(([field, active]) => [
+                field,
+                active ? Number(editingItemCampaignIds[field]) : null,
+              ])
+            ),
+          }),
         }
       );
       const data = await response.json();
@@ -757,6 +873,7 @@ export default function AdvancedConfigurationsPage() {
             ? {
                 ...item,
                 campaigns: data.campaigns,
+                campaignIds: data.campaignIds,
                 activeCampaigns: staychatCampaignFields
                   .map(([field]) => field)
                   .filter((field) => data.campaigns[field]),
@@ -1308,7 +1425,7 @@ export default function AdvancedConfigurationsPage() {
                   </h2>
                   <p className="mt-1 text-sm text-gray-500">
                     {massUpdateStep === "campaigns"
-                      ? "Selecione as campanhas que pretende ativar nos itens."
+                      ? "Selecione os estados a ativar e a campanha a associar a cada estado."
                       : "Selecione os itens Staychat a atualizar."}
                   </p>
                 </div>
@@ -1337,7 +1454,7 @@ export default function AdvancedConfigurationsPage() {
                       onClick={toggleAllMassCampaigns}
                       className="text-sm font-medium text-red-600 hover:text-red-700"
                     >
-                      {selectedMassCampaigns.length === staychatCampaignFields.length
+                      {Object.keys(selectedMassCampaigns).length === staychatCampaignFields.length
                         ? "Limpar seleção"
                         : "Selecionar todas"}
                     </button>
@@ -1357,18 +1474,36 @@ export default function AdvancedConfigurationsPage() {
                         </legend>
                         <div className="grid gap-3">
                           {fields.map(([name, label]) => (
-                            <label
+                            <div
                               key={name}
-                              className="flex cursor-pointer items-center gap-3 text-sm text-gray-700"
+                              className="grid gap-2 rounded-lg border border-gray-100 p-3"
                             >
-                              <input
-                                type="checkbox"
-                                checked={selectedMassCampaigns.includes(name)}
-                                onChange={() => toggleMassCampaign(name)}
-                                className="h-4 w-4 accent-red-600"
-                              />
-                              {label}
-                            </label>
+                              <label className="flex cursor-pointer items-center gap-3 text-sm text-gray-700">
+                                <input
+                                  type="checkbox"
+                                  checked={Object.prototype.hasOwnProperty.call(
+                                    selectedMassCampaigns,
+                                    name
+                                  )}
+                                  onChange={() => toggleMassCampaign(name)}
+                                  className="h-4 w-4 accent-red-600"
+                                />
+                                {label}
+                              </label>
+                              {Object.prototype.hasOwnProperty.call(
+                                selectedMassCampaigns,
+                                name
+                              ) && (
+                                <CampaignSelect
+                                  campaigns={staychatCampaigns}
+                                  name={name}
+                                  value={selectedMassCampaigns[name]}
+                                  onChange={(event) =>
+                                    updateMassCampaignId(name, event.target.value)
+                                  }
+                                />
+                              )}
+                            </div>
                           ))}
                         </div>
                       </fieldset>
@@ -1587,10 +1722,58 @@ export default function AdvancedConfigurationsPage() {
                   ATENÇÃO — ESTA AÇÃO É IRREVERSÍVEL
                 </p>
                 <p className="mt-1">
-                  Serão limpos todos os 9 campos de campanhas Staychat dos itens
-                  abaixo. <strong>Esta operação não pode ser desfeita.</strong>{" "}
-                  O campo <strong>sendStaychat</strong> será mantido.
+                  Serão desativados os estados selecionados nos itens abaixo e
+                  removidas as respetivas associações.{" "}
+                  <strong>Esta operação não pode ser desfeita.</strong> O campo{" "}
+                  <strong>sendStaychat</strong> será mantido.
                 </p>
+              </div>
+
+              <div className="mt-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-gray-800">
+                    Estados a desativar
+                  </p>
+                  <button
+                    type="button"
+                    onClick={toggleAllCleanupCampaigns}
+                    className="text-sm font-medium text-red-600 hover:text-red-700"
+                  >
+                    {selectedCleanupCampaigns.length === staychatCampaignFields.length
+                      ? "Limpar seleção"
+                      : "Selecionar todos"}
+                  </button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {staychatCampaignSections.map(
+                    ([sectionTitle, , fields]) => (
+                      <fieldset
+                        key={sectionTitle}
+                        className="rounded-xl border border-gray-200 p-3"
+                      >
+                        <legend className="px-1 text-sm font-semibold text-gray-800">
+                          {sectionTitle}
+                        </legend>
+                        <div className="grid gap-2">
+                          {fields.map(([field, label]) => (
+                            <label
+                              key={field}
+                              className="flex cursor-pointer items-center gap-2 text-sm text-gray-700"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedCleanupCampaigns.includes(field)}
+                                onChange={() => toggleCleanupCampaign(field)}
+                                className="h-4 w-4 accent-red-700"
+                              />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
+                    )
+                  )}
+                </div>
               </div>
 
               {massCleanupError && (
@@ -1608,16 +1791,20 @@ export default function AdvancedConfigurationsPage() {
                   <p className="rounded-xl bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
                     Não existem itens com campanhas ativas para limpar.
                   </p>
+                ) : affectedCleanupItems.length === 0 ? (
+                  <p className="rounded-xl bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
+                    Nenhum item tem os estados selecionados ativos.
+                  </p>
                 ) : (
                   <>
                     <p className="mb-2 text-sm font-medium text-gray-700">
-                      {massCleanupItems.length}{" "}
-                      {massCleanupItems.length === 1
+                      {affectedCleanupItems.length}{" "}
+                      {affectedCleanupItems.length === 1
                         ? "item será afetado"
                         : "itens serão afetados"}:
                     </p>
                     <div className="max-h-[40vh] overflow-y-auto rounded-xl border border-gray-200">
-                      {massCleanupItems.map((item) => (
+                      {affectedCleanupItems.map((item) => (
                         <div
                           key={item.outlet_item_id}
                           className="border-b border-gray-100 px-4 py-3 last:border-b-0"
@@ -1636,11 +1823,25 @@ export default function AdvancedConfigurationsPage() {
                           <p className="mt-1 text-xs text-gray-500">
                             Campanhas ativas:{" "}
                             {item.activeCampaigns
+                              .filter((field) =>
+                                selectedCleanupCampaigns.includes(field)
+                              )
                               .map(
-                                (field) =>
-                                  staychatCampaignFields.find(
+                                (field) => {
+                                  const label = staychatCampaignFields.find(
                                     ([name]) => name === field
-                                  )?.[1] || field
+                                  )?.[1] || field;
+                                  const linkedCampaign = staychatCampaigns.find(
+                                    (campaign) =>
+                                      campaign.staychat_campaign_id ===
+                                      item.campaignIds[field]
+                                  );
+                                  return `${label}: ${
+                                    linkedCampaign?.campaign_name ||
+                                    linkedCampaign?.campaign_id ||
+                                    "sem campanha associada"
+                                  }`;
+                                }
                               )
                               .join(", ")}
                           </p>
@@ -1668,8 +1869,9 @@ export default function AdvancedConfigurationsPage() {
                         className="mt-0.5 h-4 w-4 accent-red-700"
                       />
                       <span>
-                        Compreendo que todas as campanhas listadas serão
-                        apagadas e que esta operação não é reversível.
+                        Compreendo que os estados selecionados serão
+                        desativados e as associações removidas de todos os itens
+                        listados; esta operação não é reversível.
                       </span>
                     </label>
                   </>
@@ -1692,13 +1894,14 @@ export default function AdvancedConfigurationsPage() {
                     loadingMassCleanupItems ||
                     savingMassCleanup ||
                     !confirmedMassCleanup ||
-                    massCleanupItems.length === 0
+                    affectedCleanupItems.length === 0 ||
+                    selectedCleanupCampaigns.length === 0
                   }
                   className="rounded-xl bg-red-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {savingMassCleanup
                     ? "A limpar..."
-                    : "Limpar todas as campanhas"}
+                    : "Limpar estados selecionados"}
                 </button>
               </div>
             </section>
@@ -1743,22 +1946,33 @@ export default function AdvancedConfigurationsPage() {
                 {(staychatCampaignsByItemType[
                   editingCampaignItem.item_type
                 ] || []).map((field) => (
-                  <label
+                  <div
                     key={field}
-                    className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-700"
+                    className="grid gap-3 rounded-lg border border-gray-200 px-3 py-2.5"
                   >
-                    <input
-                      type="checkbox"
-                      name={field}
-                      checked={editingItemCampaigns[field] === true}
-                      onChange={updateEditingItemCampaign}
-                      disabled={savingItemCampaigns}
-                      className="h-4 w-4 accent-red-600"
-                    />
-                    {staychatCampaignFields.find(
-                      ([campaignField]) => campaignField === field
-                    )?.[1] || field}
-                  </label>
+                    <label className="flex cursor-pointer items-center gap-3 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        name={field}
+                        checked={editingItemCampaigns[field] === true}
+                        onChange={updateEditingItemCampaign}
+                        disabled={savingItemCampaigns}
+                        className="h-4 w-4 accent-red-600"
+                      />
+                      {staychatCampaignFields.find(
+                        ([campaignField]) => campaignField === field
+                      )?.[1] || field}
+                    </label>
+                    {editingItemCampaigns[field] && (
+                      <CampaignSelect
+                        campaigns={staychatCampaigns}
+                        name={field}
+                        value={editingItemCampaignIds[field]}
+                        onChange={updateEditingItemCampaignId}
+                        disabled={savingItemCampaigns}
+                      />
+                    )}
+                  </div>
                 ))}
               </div>
 
@@ -1802,6 +2016,36 @@ function SectionTitle({ title, description }) {
         {description}
       </p>
     </div>
+  );
+}
+
+function CampaignSelect({ campaigns, name, value, onChange, disabled = false }) {
+  return (
+    <label className="flex flex-col gap-1.5 text-xs font-medium text-gray-600">
+      Campanha Staychat associada
+      <select
+        name={name}
+        value={value || ""}
+        onChange={onChange}
+        disabled={disabled}
+        className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-normal text-gray-900 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50 disabled:cursor-not-allowed disabled:bg-gray-100"
+      >
+        <option value="">Selecione uma campanha</option>
+        {campaigns.map((campaign) => (
+          <option
+            key={campaign.staychat_campaign_id}
+            value={campaign.staychat_campaign_id}
+          >
+            {campaign.campaign_name} ({campaign.campaign_id})
+          </option>
+        ))}
+      </select>
+      {campaigns.length === 0 && (
+        <span className="font-normal text-red-600">
+          Não existem campanhas registadas. Adicione uma na configuração Staychat.
+        </span>
+      )}
+    </label>
   );
 }
 

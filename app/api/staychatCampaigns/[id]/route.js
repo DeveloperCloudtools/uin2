@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { validateStaychatCampaign } from "@/lib/staychatCampaigns";
+import { staychatCampaignFields } from "@/lib/staychatCampaignItems";
 
 function parseId(value) {
   const id = Number(value);
@@ -44,6 +45,24 @@ export async function DELETE(_request, context) {
     const id = parseId(rawId);
     if (!id) {
       return Response.json({ error: "ID da campanha inválido." }, { status: 400 });
+    }
+
+    const associatedItem = await prisma.outletItems.findFirst({
+      where: {
+        OR: staychatCampaignFields.map((field) => ({
+          [`${field}_campaign_id`]: id,
+        })),
+      },
+      select: { outlet_item_id: true },
+    });
+    if (associatedItem) {
+      return Response.json(
+        {
+          error:
+            "Esta campanha está associada a itens. Remova as associações antes de a eliminar.",
+        },
+        { status: 409 }
+      );
     }
 
     await prisma.staychatCampaigns.delete({

@@ -27,6 +27,17 @@ export async function PATCH(request, context) {
         { status: 400 }
       );
     }
+    const campaignIds = body?.campaignIds;
+    if (
+      !campaignIds ||
+      typeof campaignIds !== "object" ||
+      Array.isArray(campaignIds)
+    ) {
+      return Response.json(
+        { error: "Indique as campanhas associadas ao item." },
+        { status: 400 }
+      );
+    }
 
     const item = await prisma.outletItems.findUnique({
       where: { outlet_item_id: id },
@@ -46,13 +57,36 @@ export async function PATCH(request, context) {
     const allowedFields = campaignsByItemType[item.item_type];
     if (
       Object.keys(campaigns).length !== allowedFields.length ||
+      Object.keys(campaignIds).length !== allowedFields.length ||
       allowedFields.some(
         (field) => typeof campaigns[field] !== "boolean"
       ) ||
-      Object.keys(campaigns).some((field) => !allowedFields.includes(field))
+      allowedFields.some(
+        (field) =>
+          (campaigns[field] &&
+            (!Number.isSafeInteger(campaignIds[field]) ||
+              campaignIds[field] <= 0)) ||
+          (!campaigns[field] && campaignIds[field] !== null)
+      ) ||
+      Object.keys(campaigns).some((field) => !allowedFields.includes(field)) ||
+      Object.keys(campaignIds).some((field) => !allowedFields.includes(field))
     ) {
       return Response.json(
-        { error: "As campanhas indicadas não correspondem ao tipo do item." },
+        { error: "Selecione uma campanha para cada estado ativo do item." },
+        { status: 400 }
+      );
+    }
+
+    const selectedCampaignIds = [
+      ...new Set(Object.values(campaignIds).filter((value) => value !== null)),
+    ];
+    const existingCampaigns = await prisma.staychatCampaigns.findMany({
+      where: { staychat_campaign_id: { in: selectedCampaignIds } },
+      select: { staychat_campaign_id: true },
+    });
+    if (existingCampaigns.length !== selectedCampaignIds.length) {
+      return Response.json(
+        { error: "Uma ou mais campanhas selecionadas já não existem." },
         { status: 400 }
       );
     }
@@ -63,7 +97,15 @@ export async function PATCH(request, context) {
         sendStaychat: "1",
         item_type: item.item_type,
       },
-      data: campaigns,
+      data: {
+        ...campaigns,
+        ...Object.fromEntries(
+          allowedFields.map((field) => [
+            `${field}_campaign_id`,
+            campaignIds[field],
+          ])
+        ),
+      },
     });
     if (result.count !== 1) {
       return Response.json(
@@ -72,7 +114,7 @@ export async function PATCH(request, context) {
       );
     }
 
-    return Response.json({ campaigns });
+    return Response.json({ campaigns, campaignIds });
   } catch (error) {
     console.error("Erro ao guardar campanhas do item Staychat:", error);
     return Response.json(

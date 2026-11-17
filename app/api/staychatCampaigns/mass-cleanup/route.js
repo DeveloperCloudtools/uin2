@@ -25,6 +25,7 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const itemIds = body?.outletItemIds;
+    const fields = body?.campaignFields;
 
     if (
       !Array.isArray(itemIds) ||
@@ -36,14 +37,28 @@ export async function POST(request) {
         { status: 400 }
       );
     }
+    if (
+      !Array.isArray(fields) ||
+      fields.length === 0 ||
+      fields.some((field) => !staychatCampaignFields.includes(field)) ||
+      new Set(fields).size !== fields.length
+    ) {
+      return Response.json(
+        { error: "Selecione pelo menos um estado de campanha válido para limpar." },
+        { status: 400 }
+      );
+    }
 
     const result = await prisma.outletItems.updateMany({
       where: {
         outlet_item_id: { in: [...new Set(itemIds)] },
-        ...itemsWithActiveCampaigns,
+        OR: fields.map((field) => ({ [field]: true })),
       },
       data: Object.fromEntries(
-        staychatCampaignFields.map((field) => [field, false])
+        fields.flatMap((field) => [
+          [field, false],
+          [`${field}_campaign_id`, null],
+        ])
       ),
     });
 
