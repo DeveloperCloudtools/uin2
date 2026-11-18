@@ -6,6 +6,19 @@ function isEnabled(value) {
   return value === true || value === 1 || value === "1";
 }
 
+function getScheduleName(schedule) {
+  let data = schedule.schedule_json;
+  if (typeof data === "string") {
+    try {
+      data = JSON.parse(data);
+    } catch {
+      data = null;
+    }
+  }
+
+  return data?.name || `Horário ${schedule.schedule_id}`;
+}
+
 const campaignsByItemType = {
   Produto: [
     ["product_accept", "Produto aceite"],
@@ -34,6 +47,7 @@ export default function ItemModal({
 }) {
   const isTableReservation = item.item_type === "Reserva de mesa";
   const isProduct = item.item_type === "Produto";
+  const isService = item.item_type === "Serviço";
   const campaignFields = campaignsByItemType[item.item_type] || [];
   const [form, setForm] = useState({
     item_name1: item.item_name1 || "",
@@ -41,6 +55,7 @@ export default function ItemModal({
     item_price: item.item_price ?? "",
     item_vat: item.item_vat ?? "",
     item_duration: item.item_duration ?? "",
+    schedule_id: item.schedule_id == null ? "" : String(item.schedule_id),
     reservation: isEnabled(item.reservation),
     takeaway_order: isEnabled(item.takeaway_order),
     cart: isEnabled(item.cart),
@@ -67,6 +82,9 @@ export default function ItemModal({
   const [staychatCampaigns, setStaychatCampaigns] = useState([]);
   const [loadingStaychatCampaigns, setLoadingStaychatCampaigns] = useState(true);
   const [staychatCampaignsError, setStaychatCampaignsError] = useState("");
+  const [schedules, setSchedules] = useState([]);
+  const [loadingSchedules, setLoadingSchedules] = useState(isService);
+  const [schedulesError, setSchedulesError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -103,6 +121,39 @@ export default function ItemModal({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isService) return;
+
+    let cancelled = false;
+
+    async function loadSchedules() {
+      try {
+        const response = await fetch("/api/schedules");
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Não foi possível carregar os horários.");
+        }
+        if (!Array.isArray(data)) {
+          throw new Error("A lista de horários é inválida.");
+        }
+        if (!cancelled) setSchedules(data);
+      } catch (loadError) {
+        if (!cancelled) {
+          setSchedulesError(
+            loadError.message || "Não foi possível carregar os horários."
+          );
+        }
+      } finally {
+        if (!cancelled) setLoadingSchedules(false);
+      }
+    }
+
+    loadSchedules();
+    return () => {
+      cancelled = true;
+    };
+  }, [isService]);
 
   const showStaychatToggle =
     (isProduct && form.order) ||
@@ -154,11 +205,21 @@ export default function ItemModal({
     }
 
     if (
-      isTableReservation &&
+      (isTableReservation || isService) &&
       (!Number.isSafeInteger(Number(form.item_duration)) ||
         Number(form.item_duration) <= 0)
     ) {
       setError("Indique uma duração válida em minutos.");
+      return;
+    }
+
+    if (
+      isService &&
+      !schedules.some(
+        (schedule) => schedule.schedule_id === Number(form.schedule_id)
+      )
+    ) {
+      setError("Selecione um horário válido.");
       return;
     }
 
@@ -195,6 +256,12 @@ export default function ItemModal({
             : {}),
           item_price: form.item_price,
           item_vat: form.item_vat,
+          ...(isService
+            ? {
+                item_duration: Number(form.item_duration),
+                schedule_id: Number(form.schedule_id),
+              }
+            : {}),
           ...(isProduct
             ? {
                 takeaway_order: form.takeaway_order,
@@ -413,6 +480,65 @@ export default function ItemModal({
                 </div>
               </fieldset>}
             </>
+          )}
+          {isService && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="item-modal-duration"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Duração (minutos)
+                </label>
+                <input
+                  id="item-modal-duration"
+                  name="item_duration"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.item_duration}
+                  onChange={handleChange}
+                  required
+                  disabled={isSaving}
+                  className="h-10 rounded-lg border px-3"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="item-modal-schedule"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Horário associado
+                </label>
+                <select
+                  id="item-modal-schedule"
+                  name="schedule_id"
+                  value={form.schedule_id}
+                  onChange={handleChange}
+                  required
+                  disabled={isSaving || loadingSchedules || schedulesError !== ""}
+                  className="h-10 rounded-lg border px-3 disabled:bg-gray-100"
+                >
+                  <option value="">
+                    {loadingSchedules
+                      ? "A carregar horários..."
+                      : schedules.length === 0
+                        ? "Sem horários disponíveis"
+                        : "Selecionar horário"}
+                  </option>
+                  {schedules.map((schedule) => (
+                    <option key={schedule.schedule_id} value={schedule.schedule_id}>
+                      {getScheduleName(schedule)}
+                    </option>
+                  ))}
+                </select>
+                {schedulesError && (
+                  <p role="alert" className="text-sm text-red-700">
+                    {schedulesError}
+                  </p>
+                )}
+              </div>
+            </div>
           )}
           {isProduct && (
             <fieldset className="flex flex-col gap-2">

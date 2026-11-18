@@ -168,6 +168,37 @@ export async function PATCH(request, context) {
         );
       }
 
+      let serviceData = {};
+      if (currentItem.item_type === "Serviço") {
+        const duration = Number(body.item_duration);
+        if (!Number.isSafeInteger(duration) || duration <= 0) {
+          return Response.json(
+            { error: "A duração deve ser um número inteiro positivo." },
+            { status: 400 }
+          );
+        }
+
+        const scheduleId = Number(body.schedule_id);
+        if (!Number.isSafeInteger(scheduleId) || scheduleId <= 0) {
+          return Response.json(
+            { error: "Selecione um horário válido." },
+            { status: 400 }
+          );
+        }
+        const schedule = await prisma.schedules.findUnique({
+          where: { schedule_id: scheduleId },
+          select: { schedule_id: true },
+        });
+        if (!schedule) {
+          return Response.json(
+            { error: "O horário selecionado já não existe." },
+            { status: 400 }
+          );
+        }
+
+        serviceData = { item_duration: duration, schedule_id: scheduleId };
+      }
+
       for (const field of [
         "takeaway_order",
         "cart",
@@ -191,6 +222,7 @@ export async function PATCH(request, context) {
         item_description1: body.item_description1?.trim() || null,
         item_price: price,
         item_vat: vat == null ? null : String(vat),
+        ...serviceData,
         takeaway_order: isEnabled(body.takeaway_order),
         cart: isEnabled(body.cart),
         order: isEnabled(body.order),

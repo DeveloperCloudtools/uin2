@@ -64,6 +64,7 @@ export async function POST(request) {
         item_type: item.item_type,
         item_price: toPrice(item.item_price),
         item_vat: item.item_vat,
+        item_duration: item.item_duration,
         reservation: item.reservation,
         checkin: item.checkin,
         room: item.room,

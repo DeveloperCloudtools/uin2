@@ -921,6 +921,12 @@ export default function Editor({
         item_description1: item.item_description1,
         item_price: item.item_price,
         item_vat: item.item_vat,
+        ...(editingProduct.item_type === "Serviço"
+          ? {
+              item_duration: item.item_duration,
+              schedule_id: item.schedule_id,
+            }
+          : {}),
         takeaway_order: item.takeaway_order,
         cart: item.cart,
         order: item.order,
