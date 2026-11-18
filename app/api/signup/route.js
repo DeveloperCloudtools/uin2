@@ -79,7 +79,12 @@ export async function POST(req) {
         if (user) {
             code = await generateUniqueCode();
 
-            const expiration = new Date(Date.now() + 10 * 60 * 1000);
+            const now = new Date();
+            const expiration = new Date(now.getTime() + 10 * 60 * 1000);
+            const accountExpiration = new Date(
+                user.created_at.getTime() + user.account_duration * 1000
+            );
+            const accountExpired = now >= accountExpiration;
 
             user = await prisma.users_FO.update({
                 where: {
@@ -88,6 +93,15 @@ export async function POST(req) {
                 data: {
                     access_code: code,
                     access_code_expiration: expiration,
+                    updated_at: now,
+                    ...(accountExpired
+                        ? {
+                              created_at: now,
+                              password: null,
+                              session_token: null,
+                              session_expires_at: null,
+                          }
+                        : {}),
                 },
             });
         }

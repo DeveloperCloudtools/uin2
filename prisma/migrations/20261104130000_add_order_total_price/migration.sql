@@ -1,2 +1,0 @@
-ALTER TABLE `Orders`
-  ADD COLUMN `price` DECIMAL(10, 2) NULL;
