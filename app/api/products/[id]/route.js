@@ -178,50 +178,72 @@ export async function PUT(req, context) {
     );
   }
 
-  const updated = await prisma.items.update({
-    where: { item_id: id },
-    data: {
-      item_name1: body.item_name1,
-      item_name2: body.item_name2 ?? null,
-      item_name3: body.item_name3 ?? null,
-      item_name4: body.item_name4 ?? null,
-      item_name5: body.item_name5 ?? null,
-      item_cat_id: body.item_cat_id ? Number(body.item_cat_id) : null,
-      preparation: body.preparation ? JSON.stringify(body.preparation) : null,
-      item_description1: body.item_description1 ?? null,
-      item_description2: body.item_description2 ?? null,
-      item_description3: body.item_description3 ?? null,
-      item_description4: body.item_description4 ?? null,
-      item_description5: body.item_description5 ?? null,
-      item_image_url: body.item_image_url ?? null,
-      item_price:
-        body.item_price != null && body.item_price !== ""
-          ? String(body.item_price).trim()
-          : null,
-      ...(Object.hasOwn(body, "item_vat")
-        ? {
-            item_vat:
-              body.item_vat != null && body.item_vat !== ""
-                ? String(body.item_vat).trim()
-                : null,
-          }
-        : {}),
-      ...(Object.hasOwn(body, "item_duration")
-        ? {
-            item_duration: itemDuration,
-          }
-        : {}),
-      visiblePrice: toFlag(body.visiblePrice),
-      item_type: body.item_type ?? null,
-      allowReservations: toFlag(body.allowReservations),
-      scheduleID: body.scheduleID ? String(body.scheduleID).trim() : null,
-      reservation: toFlag(body.reservation),
-      checkin: toFlag(body.checkin),
-      room: toFlag(body.room),
-      instantOrder: toFlag(body.instantOrder),
-      sendStaychat: toFlag(body.sendStaychat),
-      staychatWebhook: body.staychatWebhook ?? null,
-    },
+  const updated = await prisma.$transaction(async (transaction) => {
+    const item = await transaction.items.update({
+      where: { item_id: id },
+      data: {
+        item_name1: body.item_name1,
+        item_name2: body.item_name2 ?? null,
+        item_name3: body.item_name3 ?? null,
+        item_name4: body.item_name4 ?? null,
+        item_name5: body.item_name5 ?? null,
+        item_cat_id: body.item_cat_id ? Number(body.item_cat_id) : null,
+        preparation: body.preparation ? JSON.stringify(body.preparation) : null,
+        item_description1: body.item_description1 ?? null,
+        item_description2: body.item_description2 ?? null,
+        item_description3: body.item_description3 ?? null,
+        item_description4: body.item_description4 ?? null,
+        item_description5: body.item_description5 ?? null,
+        item_image_url: body.item_image_url ?? null,
+        item_price:
+          body.item_price != null && body.item_price !== ""
+            ? String(body.item_price).trim()
+            : null,
+        ...(Object.hasOwn(body, "item_vat")
+          ? {
+              item_vat:
+                body.item_vat != null && body.item_vat !== ""
+                  ? String(body.item_vat).trim()
+                  : null,
+            }
+          : {}),
+        ...(Object.hasOwn(body, "item_duration")
+          ? {
+              item_duration: itemDuration,
+            }
+          : {}),
+        visiblePrice: toFlag(body.visiblePrice),
+        item_type: body.item_type ?? null,
+        allowReservations: toFlag(body.allowReservations),
+        scheduleID: body.scheduleID ? String(body.scheduleID).trim() : null,
+        reservation: toFlag(body.reservation),
+        checkin: toFlag(body.checkin),
+        room: toFlag(body.room),
+        instantOrder: toFlag(body.instantOrder),
+        sendStaychat: toFlag(body.sendStaychat),
+        staychatWebhook: body.staychatWebhook ?? null,
+      },
+    });
+
+    await transaction.outletItems.updateMany({
+      where: { item_id: id },
+      data: {
+        item_name1: item.item_name1,
+        item_name2: item.item_name2,
+        item_name3: item.item_name3,
+        item_name4: item.item_name4,
+        item_name5: item.item_name5,
+        item_description1: item.item_description1,
+        item_description2: item.item_description2,
+        item_description3: item.item_description3,
+        item_description4: item.item_description4,
+        item_description5: item.item_description5,
+        item_image_url: item.item_image_url,
+        item_type: item.item_type,
+      },
+    });
+
+    return item;
   });
 
   return Response.json(updated);
