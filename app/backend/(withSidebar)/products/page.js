@@ -227,22 +227,27 @@ export default function ItemsPage() {
 
     try {
       if (!editingId) {
-        await fetch("/api/products", {
+        const response = await fetch("/api/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+        if (!response.ok) throw new Error("Não foi possível guardar o item.");
       } else {
-        await fetch(`/api/products/${editingId}`, {
+        const response = await fetch(`/api/products/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+        if (!response.ok) throw new Error("Não foi possível guardar o item.");
       }
 
       setShowModal(false);
       setEditingId(null);
-      fetchProducts();
+      await fetchProducts();
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "Erro ao guardar item");
     } finally {
       setIsSaving(false);
     }
