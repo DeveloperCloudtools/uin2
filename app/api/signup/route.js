@@ -108,6 +108,19 @@ export async function POST(req) {
 
         // Se não existe, criar utilizador
         else {
+            const nonGuestType = await prisma.usersFOType.findFirst({
+                where: {
+                    userName: "Non-Guest",
+                },
+                select: {
+                    userBOTypeID: true,
+                },
+            });
+
+            if (!nonGuestType) {
+                throw new Error('User type "Non-Guest" was not found.');
+            }
+
             code = await generateUniqueCode();
 
             const expiration = new Date(Date.now() + 10 * 60 * 1000);
@@ -117,6 +130,7 @@ export async function POST(req) {
                     email: email,
                     access_code: code,
                     access_code_expiration: expiration,
+                    user_type_id: nonGuestType.userBOTypeID,
                 },
             });
         }

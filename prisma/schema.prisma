@@ -116,12 +116,13 @@ model PreparationGroups {
 }
 
 model Users {
-  user_id    Int       @id @default(autoincrement())
-  username   String    @db.VarChar(100)
-  created_at DateTime? @default(now()) @db.DateTime(0)
-  last_login DateTime? @db.DateTime(0)
-  password   String    @db.VarChar(255)
-  type       Int?      @db.TinyInt
+  user_id      Int       @id @default(autoincrement())
+  username     String    @db.VarChar(100)
+  created_at   DateTime? @default(now()) @db.DateTime(0)
+  last_login   DateTime? @db.DateTime(0)
+  password     String    @db.VarChar(255)
+  type         Int?      @db.TinyInt
+  user_type_id Int?
 }
 
 model Users_FO {
@@ -135,6 +136,7 @@ model Users_FO {
   session_token          String?   @unique(map: "session_token") @db.VarChar(255)
   session_expires_at     DateTime? @db.DateTime(0)
   account_duration       Int       @default(172800)
+  user_type_id           Int?
 }
 
 model chatbotsStay {
@@ -546,4 +548,16 @@ model StaychatCampaigns {
   campaign_id          String?   @db.VarChar(200)
   createdAt            DateTime? @default(now()) @db.Timestamp(0)
   updatedAt            DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model UsersBOType {
+  userBOTypeID Int     @id @default(autoincrement())
+  userName     String? @db.VarChar(100)
+  userDesc     String? @db.VarChar(255)
+}
+
+model UsersFOType {
+  userBOTypeID Int     @id @default(autoincrement())
+  userName     String? @db.VarChar(100)
+  userDesc     String? @db.VarChar(255)
 }

@@ -73,6 +73,19 @@ function generateAccessCode() {
 // --------------------------------------------------
 
 async function generateUniqueAccessCode() {
+  const nonGuestType = await prisma.UsersFOType.findFirst({
+    where: {
+      userName: "Non-Guest",
+    },
+    select: {
+      userBOTypeID: true,
+    },
+  });
+
+  if (!nonGuestType) {
+    throw new Error('User type "Non-Guest" was not found.');
+  }
+
   while (true) {
     const accessCode = generateAccessCode();
 
