@@ -529,7 +529,7 @@ export default function ItemsPage() {
                       >
                         <option value="">Selecionar tipo</option>
                         <option value="Produto">Produto</option>
-                        <option value="Serviço">Serviço</option>
+                        <option value="Serviço">Reserva de Serviço</option>
                         <option value="Review">Review</option>
                         <option value="Informação">Informação</option>
                         <option value="Reserva de mesa">Reserva de mesa</option>
