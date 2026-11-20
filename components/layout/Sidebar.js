@@ -31,6 +31,7 @@ const sidebarSections = [
         children: [
           { name: "Pedidos", path: "/backend/orders" },
           { name: "Reservas", path: "/backend/reservations" },
+          { name: "Reservas de serviços", path: "/backend/service-reservations" },
         ],
       },
     ],
