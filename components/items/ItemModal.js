@@ -324,14 +324,14 @@ export default function ItemModal({
     >
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl"
+        className="flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white p-6 shadow-xl"
         aria-labelledby="item-modal-title"
       >
         <h2 id="item-modal-title" className="mb-5 text-xl font-semibold">
           Editar item
         </h2>
 
-        <div className="flex flex-col gap-4">
+        <div className="min-h-0 flex-1 overflow-y-auto flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label htmlFor="item-modal-name" className="text-sm font-medium text-gray-700">
               Nome do item
