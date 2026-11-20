@@ -6,12 +6,14 @@ const RESERVATION_STATUSES = new Set([
   "confirmed",
   "cancelled",
   "completed",
+  "no-show",
 ]);
 
 const STATUS_LABELS = {
   confirmed: "aceite",
   cancelled: "cancelada",
   completed: "concluída",
+  "no-show": "marcada como No-Show",
 };
 
 function getReservationInclude() {

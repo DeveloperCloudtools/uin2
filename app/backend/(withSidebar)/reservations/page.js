@@ -55,6 +55,9 @@ export default function ReservationsPage() {
   const [isLoadingShifts, setIsLoadingShifts] = useState(false);
   const [error, setError] = useState("");
   const [calendarError, setCalendarError] = useState("");
+  const [updatingReservationId, setUpdatingReservationId] = useState(null);
+  const [reservationUpdateError, setReservationUpdateError] = useState("");
+  const [reservationUpdateSuccess, setReservationUpdateSuccess] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -189,6 +192,47 @@ export default function ReservationsPage() {
 
     return () => controller.abort();
   }, [activeTab, outletId, people, reservationFromTime, selectedDate]);
+
+  async function markReservationNoShow(reservation) {
+    if (updatingReservationId !== null) return;
+
+    setUpdatingReservationId(reservation.reservation_id);
+    setReservationUpdateError("");
+    setReservationUpdateSuccess("");
+    try {
+      const response = await fetch(
+        `/api/reservations/${reservation.reservation_id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "no-show" }),
+        }
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          result.error || "Não foi possível marcar a reserva como No-Show."
+        );
+      }
+
+      setReservations((current) =>
+        current.filter(
+          (item) => item.reservation_id !== reservation.reservation_id
+        )
+      );
+      setReservationUpdateSuccess(
+        `Reserva #${reservation.reservation_id} marcada como No-Show. Foi enviada uma notificação para o perfil do cliente.`
+      );
+    } catch (updateError) {
+      console.error(updateError);
+      setReservationUpdateError(
+        updateError.message ||
+          "Não foi possível marcar a reserva como No-Show."
+      );
+    } finally {
+      setUpdatingReservationId(null);
+    }
+  }
 
   const todayDate = getLocalDateString();
 
@@ -573,6 +617,22 @@ export default function ReservationsPage() {
 
         {activeTab === "reservations" && !isLoadingShifts && selectedDate && (
           <div className="grid gap-3">
+            {reservationUpdateError && (
+              <p
+                role="alert"
+                className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+              >
+                {reservationUpdateError}
+              </p>
+            )}
+            {reservationUpdateSuccess && (
+              <p
+                role="status"
+                className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700"
+              >
+                {reservationUpdateSuccess}
+              </p>
+            )}
             {reservationFromTime && (
               <p className="text-sm text-gray-600">
                 Reservas a partir das {reservationFromTime}
@@ -598,23 +658,35 @@ export default function ReservationsPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {reservation.tables.length ? (
-                      reservation.tables.map((table, index) => (
-                        <span
-                          key={`${reservation.reservation_id}-${index}`}
-                          className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-700"
-                        >
-                          {table.count > 1 ? `${table.count} × ` : ""}
-                          {table.typology || "Mesa"}
-                          {table.room ? ` · ${table.room}` : ""}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      {reservation.tables.length ? (
+                        reservation.tables.map((table, index) => (
+                          <span
+                            key={`${reservation.reservation_id}-${index}`}
+                            className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-700"
+                          >
+                            {table.count > 1 ? `${table.count} × ` : ""}
+                            {table.typology || "Mesa"}
+                            {table.room ? ` · ${table.room}` : ""}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-sm text-gray-500">
+                          Mesa não atribuída
                         </span>
-                      ))
-                    ) : (
-                      <span className="text-sm text-gray-500">
-                        Mesa não atribuída
-                      </span>
-                    )}
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => markReservationNoShow(reservation)}
+                      disabled={updatingReservationId !== null}
+                      className="rounded-lg border border-amber-300 px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {updatingReservationId === reservation.reservation_id
+                        ? "A guardar..."
+                        : "Marcar No-Show"}
+                    </button>
                   </div>
                 </section>
               ))

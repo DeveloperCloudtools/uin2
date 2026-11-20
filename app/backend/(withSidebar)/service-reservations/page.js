@@ -18,6 +18,7 @@ const STATUSES = [
   { value: "confirmed", label: "Confirmada" },
   { value: "cancelled", label: "Cancelada" },
   { value: "completed", label: "Concluída" },
+  { value: "no-show", label: "No-Show" },
 ];
 
 function getLocalDateString(offsetDays = 0) {
