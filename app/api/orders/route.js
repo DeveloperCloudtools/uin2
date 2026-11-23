@@ -2,6 +2,16 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
+    const noShowStatus = await prisma.orderStatus.findFirst({
+      where: { order_status_name: "No-Show" },
+      select: { order_status_id: true },
+    });
+    if (!noShowStatus) {
+      await prisma.orderStatus.create({
+        data: { order_status_name: "No-Show" },
+      });
+    }
+
     const [orders, outlets, statuses] = await Promise.all([
       prisma.orders.findMany({
         include: {
@@ -34,7 +44,18 @@ export async function GET() {
       }),
     ]);
 
-    return Response.json({ orders, statuses, outlets });
+    let hasNoShowStatus = false;
+    const visibleStatuses = statuses.flatMap((status) => {
+      if (status.order_status_name.trim().toLowerCase() !== "no-show") {
+        return [status];
+      }
+      if (hasNoShowStatus) return [];
+
+      hasNoShowStatus = true;
+      return [{ ...status, order_status_name: "No-Show" }];
+    });
+
+    return Response.json({ orders, statuses: visibleStatuses, outlets });
   } catch (error) {
     console.error("Não foi possível carregar os pedidos:", error);
     return Response.json(

@@ -1,62 +1,9 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import nodemailer from "nodemailer";
-import crypto from "crypto";
+import { decryptEmailPassword } from "@/lib/email";
 
 const prisma = new PrismaClient();
-
-// --------------------------------------------------
-// Configuração de desencriptação
-// --------------------------------------------------
-
-const ALGORITHM = "aes-256-gcm";
-
-function getEncryptionKey() {
-  const secret = process.env.EMAIL_PASSWORD_ENCRYPTION_KEY;
-
-  if (!secret) {
-    throw new Error(
-      "EMAIL_PASSWORD_ENCRYPTION_KEY não está configurada."
-    );
-  }
-
-  return crypto
-    .createHash("sha256")
-    .update(secret)
-    .digest();
-}
-
-function decryptEmailPassword(encryptedPassword) {
-  const key = getEncryptionKey();
-
-  const [ivHex, authTagHex, encryptedHex] =
-    encryptedPassword.split(":");
-
-  if (!ivHex || !authTagHex || !encryptedHex) {
-    throw new Error(
-      "Password SMTP encriptada inválida."
-    );
-  }
-
-  const iv = Buffer.from(ivHex, "hex");
-  const authTag = Buffer.from(authTagHex, "hex");
-  const encrypted = Buffer.from(encryptedHex, "hex");
-
-  const decipher = crypto.createDecipheriv(
-    ALGORITHM,
-    key,
-    iv
-  );
-
-  decipher.setAuthTag(authTag);
-
-  const decrypted = Buffer.concat([
-    decipher.update(encrypted),
-    decipher.final(),
-  ]);
-
-  return decrypted.toString("utf8");
-}
 
 // --------------------------------------------------
 // Gerar código aleatório de 6 dígitos

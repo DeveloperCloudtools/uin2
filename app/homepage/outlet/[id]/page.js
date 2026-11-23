@@ -5,7 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { FiArrowLeft, FiChevronDown, FiMenu } from "react-icons/fi";
+import {
+  FiArrowLeft,
+  FiChevronDown,
+  FiLock,
+  FiLogIn,
+  FiMenu,
+} from "react-icons/fi";
 import ProductNode from "../../../../components/editor/ProductNode";
 import {
   ContentImage,
@@ -125,9 +131,15 @@ export default function OutletPage() {
   const [orderSucceeded, setOrderSucceeded] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [pendingServiceReservationPath, setPendingServiceReservationPath] =
+    useState(null);
 
   const [loading, setLoading] = useState(true);
   const sessionStateRef = useRef({ checking: true, authenticated: false });
+  const serviceReservationStateRef = useRef({
+    enabled: false,
+    outletId: null,
+  });
   sessionStateRef.current = {
     checking: checkingSession,
     authenticated: isLoggedIn,
@@ -297,6 +309,10 @@ export default function OutletPage() {
   const activeOutlet = outlets.find(
     (outlet) => Number(outlet.outlet_id) === Number(contentOutletId)
   );
+  serviceReservationStateRef.current = {
+    enabled: isActive(activeOutlet?.service_reservation),
+    outletId: contentOutletId,
+  };
   const outletMenus = menus.filter(
     (menu) => Number(menu.outlet_id) === Number(contentOutletId)
   );
@@ -329,6 +345,8 @@ export default function OutletPage() {
       Underline,
       ProductNode.configure({
         onProductOrder: openOrderConfirmation,
+        onServiceReservation: openServiceReservation,
+        canReserveService: () => serviceReservationStateRef.current.enabled,
       }),
     ],
 
@@ -364,6 +382,47 @@ export default function OutletPage() {
     } catch (error) {
       console.error("Não foi possível carregar o item", error);
     }
+  }
+
+  function openServiceReservation(productId, sourceItemId) {
+    if (
+      !productId ||
+      !serviceReservationStateRef.current.outletId ||
+      !serviceReservationStateRef.current.enabled
+    ) {
+      return;
+    }
+
+    const params = new URLSearchParams({
+      outlet_id: String(serviceReservationStateRef.current.outletId),
+      [sourceItemId == null ? "item_id" : "outlet_item_id"]: String(productId),
+    });
+    const reservationPath = `/service-reservation?${params}`;
+
+    if (sessionStateRef.current.checking) return;
+    if (!sessionStateRef.current.authenticated) {
+      setPendingServiceReservationPath(reservationPath);
+      return;
+    }
+
+    router.push(reservationPath);
+  }
+
+  function continueToServiceSignIn() {
+    if (!pendingServiceReservationPath) return;
+
+    const returnUrl = new URL(
+      pendingServiceReservationPath,
+      window.location.origin
+    );
+    returnUrl.searchParams.set("auth_check", String(Date.now()));
+    const params = new URLSearchParams({
+      opensigninmodal: "",
+      service_reservation_return: `${returnUrl.pathname}${returnUrl.search}`,
+    });
+
+    setPendingServiceReservationPath(null);
+    router.push(`/homepage?${params}`);
   }
 
   async function orderProduct() {
@@ -729,6 +788,55 @@ export default function OutletPage() {
               </>
             )}
           </div>
+        </div>
+      )}
+
+      {pendingServiceReservationPath && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setPendingServiceReservationPath(null);
+            }
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="service-login-title"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+          >
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+              <FiLock aria-hidden="true" size={22} />
+            </span>
+            <h2
+              id="service-login-title"
+              className="mt-4 text-center text-lg font-semibold text-gray-900"
+            >
+              Inicie sessão para reservar
+            </h2>
+            <p className="mt-2 text-center text-sm leading-6 text-gray-600">
+              Para continuar com a reserva deste serviço, é necessário iniciar
+              sessão na sua conta.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingServiceReservationPath(null)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                Agora não
+              </button>
+              <button
+                type="button"
+                onClick={continueToServiceSignIn}
+                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+              >
+                <FiLogIn aria-hidden="true" />
+                Iniciar sessão
+              </button>
+            </div>
+          </section>
         </div>
       )}
     </div>

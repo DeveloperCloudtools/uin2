@@ -117,6 +117,7 @@ export default function Homepage() {
   const [currentUser, setCurrentUser] = useState(null);
   const [pendingReservationOutletId, setPendingReservationOutletId] =
     useState(null);
+  const [pendingPostLoginPath, setPendingPostLoginPath] = useState(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -162,6 +163,20 @@ export default function Homepage() {
     if (!Number.isNaN(requestedReservationOutletId)) {
       setPendingReservationOutletId(requestedReservationOutletId);
     }
+    const requestedReturnPath = searchParams.get("service_reservation_return");
+    if (requestedReturnPath) {
+      try {
+        const returnUrl = new URL(requestedReturnPath, window.location.origin);
+        if (
+          returnUrl.origin === window.location.origin &&
+          returnUrl.pathname === "/service-reservation"
+        ) {
+          setPendingPostLoginPath(`${returnUrl.pathname}${returnUrl.search}`);
+        }
+      } catch (error) {
+        console.error("O destino de regresso da reserva é inválido.", error);
+      }
+    }
     if (searchParams.has("opensigninmodalaccesscode")) {
       setSignInStep("code");
       setShowSignInModal(true);
@@ -173,6 +188,13 @@ export default function Homepage() {
     fetchData();
     checkSession();
   }, []);
+
+  useEffect(() => {
+    if (checkingSession || !isLoggedIn || !pendingPostLoginPath) return;
+
+    setPendingPostLoginPath(null);
+    router.push(pendingPostLoginPath);
+  }, [checkingSession, isLoggedIn, pendingPostLoginPath, router]);
 
   useEffect(() => {
     if (

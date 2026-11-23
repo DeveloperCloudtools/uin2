@@ -524,6 +524,32 @@ model Reservations {
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model ReservationsServices {
+  reservation_service_id Int         @id @default(autoincrement())
+  outlet_id              Int
+  outlet_item_id         Int
+  start_at               DateTime    @db.DateTime(0)
+  end_at                 DateTime    @db.DateTime(0)
+  duration_minutes       Int
+  status                 String      @default("confirmed") @db.VarChar(20)
+  source                 String      @default("online") @db.VarChar(20)
+  customer_name          String?     @db.VarChar(150)
+  customer_surname       String?     @db.VarChar(150)
+  customer_email         String?     @db.VarChar(255)
+  customer_phone         String?     @db.VarChar(30)
+  customer_country       String?     @db.VarChar(30)
+  notes                  String?     @db.Text
+  created_at             DateTime    @default(now()) @db.DateTime(0)
+  updated_at             DateTime    @default(now()) @db.DateTime(0)
+  updated_by             String?     @db.VarChar(150)
+  OutletItems            OutletItems @relation(fields: [outlet_item_id], references: [outlet_item_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reservations_services_outlet_items")
+  Outlets                Outlets     @relation(fields: [outlet_id], references: [outlet_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reservations_services_outlets")
+
+  @@index([outlet_item_id], map: "idx_reservations_services_outlet_item")
+  @@index([outlet_id, start_at], map: "idx_reservations_services_outlet_start")
+  @@index([outlet_id, status, start_at], map: "idx_reservations_services_outlet_status_start")
+}
+
 model IvaRates {
   iva_id       Int     @id @default(autoincrement())
   name         String  @db.VarChar(100)

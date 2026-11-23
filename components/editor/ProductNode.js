@@ -11,6 +11,8 @@ const ProductNode = Node.create({
       onProductClick: null,
       onProductEdit: null,
       onProductOrder: null,
+      onServiceReservation: null,
+      canReserveService: () => false,
     };
   },
 
@@ -82,6 +84,19 @@ const ProductNode = Node.create({
           node.attrs.sourceItemId
         );
       };
+      const serviceReservationButton = document.createElement("button");
+      serviceReservationButton.type = "button";
+      serviceReservationButton.className = "product-node-order";
+      serviceReservationButton.textContent = "Reservar";
+      serviceReservationButton.setAttribute("aria-label", "Reservar serviço");
+      serviceReservationButton.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        options.onServiceReservation?.(
+          node.attrs.productId,
+          node.attrs.sourceItemId
+        );
+      };
       const deleteButton = document.createElement("button");
       deleteButton.type = "button";
       deleteButton.className = "product-node-action product-node-delete";
@@ -140,6 +155,10 @@ const ProductNode = Node.create({
           typeof options.onProductOrder === "function" &&
           [true, 1, "1"].includes(attrs.order);
         orderButton.hidden = !canOrder;
+        serviceReservationButton.hidden =
+          attrs.productType !== "Serviço" ||
+          typeof options.onServiceReservation !== "function" ||
+          !options.canReserveService();
         content.appendChild(heading);
 
         const description = document.createElement("p");
@@ -169,6 +188,7 @@ const ProductNode = Node.create({
 
       dom.appendChild(content);
       dom.appendChild(orderButton);
+      dom.appendChild(serviceReservationButton);
       dom.appendChild(actions);
       updateNodeView(node);
 

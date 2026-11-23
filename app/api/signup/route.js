@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
-import { decryptEmailPassword } from "../emailSettings/route";
+import { decryptEmailPassword } from "@/lib/email";
 
 const prisma = new PrismaClient();
 
