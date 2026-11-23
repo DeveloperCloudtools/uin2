@@ -58,6 +58,8 @@ export default function ServiceReservationClient({
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [error, setError] = useState("");
   const [reservationId, setReservationId] = useState(null);
+  const [reservationEmailSent, setReservationEmailSent] = useState(false);
+  const [reservationEmailWarning, setReservationEmailWarning] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -169,6 +171,8 @@ export default function ServiceReservationClient({
     setIsBooking(true);
     setError("");
     setIsSuccessOpen(false);
+    setReservationEmailSent(false);
+    setReservationEmailWarning("");
 
     try {
       const response = await fetch("/api/service-reservations", {
@@ -195,6 +199,10 @@ export default function ServiceReservationClient({
       }
 
       setReservationId(result.reservation_service_id);
+      setReservationEmailSent(result.emailSent === true);
+      setReservationEmailWarning(
+        typeof result.emailWarning === "string" ? result.emailWarning : ""
+      );
       setSelectedTime("");
       setIsConfirmationOpen(false);
       setIsSuccessOpen(true);
@@ -575,6 +583,17 @@ export default function ServiceReservationClient({
                 notificações da sua conta.
               </p>
             )}
+            <p
+              role={reservationEmailWarning ? "alert" : "status"}
+              className={`mt-2 text-sm ${
+                reservationEmailWarning ? "text-amber-700" : "text-gray-600"
+              }`}
+            >
+              {reservationEmailWarning ||
+                (reservationEmailSent
+                  ? `Foi enviado um email para ${userEmail}.`
+                  : "A reserva foi criada, mas o email não foi enviado.")}
+            </p>
             <button
               type="button"
               onClick={() => setIsSuccessOpen(false)}

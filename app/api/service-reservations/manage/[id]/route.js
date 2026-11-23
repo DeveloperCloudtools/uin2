@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth-options";
+import { sendServiceReservationEmail } from "@/lib/serviceReservationEmail";
 
 const RESERVATION_STATUSES = new Set([
   "confirmed",
@@ -62,23 +63,16 @@ export async function PATCH(request, context) {
       );
     }
 
-    const updated = await prisma.$transaction(async (transaction) => {
+    const updateResult = await prisma.$transaction(async (transaction) => {
       const reservation =
         await transaction.reservationsServices.findUnique({
           where: { reservation_service_id: reservationId },
-          select: {
-            reservation_service_id: true,
-            status: true,
-            customer_email: true,
-          },
+          include: getReservationInclude(),
         });
       if (!reservation) return null;
 
       if (reservation.status === body.status) {
-        return transaction.reservationsServices.findUnique({
-          where: { reservation_service_id: reservationId },
-          include: getReservationInclude(),
-        });
+        return { reservation, statusChanged: false };
       }
 
       const customer = reservation.customer_email
@@ -114,17 +108,52 @@ export async function PATCH(request, context) {
         },
       });
 
-      return updatedReservation;
+      return { reservation: updatedReservation, statusChanged: true };
     });
 
-    if (!updated) {
+    if (!updateResult) {
       return Response.json(
         { error: "Reserva de serviço não encontrada." },
         { status: 404 }
       );
     }
 
-    return Response.json(updated);
+    let emailWarning = null;
+    let emailSent = false;
+    if (updateResult.statusChanged) {
+      const reservation = updateResult.reservation;
+      try {
+        await sendServiceReservationEmail({
+          reservationId,
+          status: body.status,
+          customerEmail: reservation.customer_email,
+          customerName: [reservation.customer_name, reservation.customer_surname]
+            .filter(Boolean)
+            .join(" "),
+          serviceName: reservation.OutletItems?.item_name1,
+          outletName:
+            reservation.Outlets?.outlet_name1 ||
+            reservation.Outlets?.outlet_name2 ||
+            "Outlet",
+          startAt: reservation.start_at,
+          durationMinutes: reservation.duration_minutes,
+        });
+        emailSent = true;
+      } catch (emailError) {
+        console.error(
+          `Não foi possível enviar o email da reserva de serviço #${reservationId}.`,
+          emailError
+        );
+        emailWarning =
+          "O estado foi atualizado, mas não foi possível enviar o email.";
+      }
+    }
+
+    return Response.json({
+      ...updateResult.reservation,
+      emailSent,
+      ...(emailWarning ? { emailWarning } : {}),
+    });
   } catch (error) {
     console.error("Não foi possível atualizar o estado da reserva de serviço:", error);
     if (error.status) {

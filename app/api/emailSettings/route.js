@@ -1,81 +1,6 @@
 
-import crypto from "crypto";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
-
-const ALGORITHM = "aes-256-gcm";
-
-function getEncryptionKey() {
-  const secret = process.env.EMAIL_PASSWORD_ENCRYPTION_KEY;
-
-  if (!secret) {
-    throw new Error(
-      "EMAIL_PASSWORD_ENCRYPTION_KEY não está configurada."
-    );
-  }
-
-  return crypto
-    .createHash("sha256")
-    .update(secret)
-    .digest();
-}
-
-function encryptPassword(password) {
-  const key = getEncryptionKey();
-
-  const iv = crypto.randomBytes(12);
-
-  const cipher = crypto.createCipheriv(
-    ALGORITHM,
-    key,
-    iv
-  );
-
-  const encrypted = Buffer.concat([
-    cipher.update(password, "utf8"),
-    cipher.final(),
-  ]);
-
-  const authTag = cipher.getAuthTag();
-
-  // Guardamos iv + authTag + conteúdo encriptado
-  return [
-    iv.toString("hex"),
-    authTag.toString("hex"),
-    encrypted.toString("hex"),
-  ].join(":");
-}
-
-function decryptPassword(encryptedPassword) {
-  const key = getEncryptionKey();
-
-  const [ivHex, authTagHex, encryptedHex] =
-    encryptedPassword.split(":");
-
-  if (!ivHex || !authTagHex || !encryptedHex) {
-    throw new Error("Password encriptada inválida.");
-  }
-
-  const iv = Buffer.from(ivHex, "hex");
-  const authTag = Buffer.from(authTagHex, "hex");
-  const encrypted = Buffer.from(encryptedHex, "hex");
-
-  const decipher = crypto.createDecipheriv(
-    ALGORITHM,
-    key,
-    iv
-  );
-
-  decipher.setAuthTag(authTag);
-
-  const decrypted = Buffer.concat([
-    decipher.update(encrypted),
-    decipher.final(),
-  ]);
-
-  return decrypted.toString("utf8");
-}
+import { prisma } from "@/lib/prisma";
+import { encryptEmailPassword } from "@/lib/email";
 
 export async function GET() {
   try {
@@ -141,7 +66,7 @@ export async function POST(request) {
     let passwordToSave = existing?.reply_password || null;
 
     if (replyPassword.trim() !== "") {
-      passwordToSave = encryptPassword(replyPassword);
+      passwordToSave = encryptEmailPassword(replyPassword);
     }
 
     const data = {
@@ -182,12 +107,4 @@ export async function POST(request) {
       { status: 500 }
     );
   }
-}
-
-/*
- * Exporta esta função para ser usada pelo código
- * que envia os emails.
- */
-export function decryptEmailPassword(encryptedPassword) {
-  return decryptPassword(encryptedPassword);
 }

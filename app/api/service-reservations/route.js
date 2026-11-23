@@ -9,6 +9,7 @@ import {
   parseReservationTime,
   parseScheduleData,
 } from "@/lib/tableReservation";
+import { sendServiceReservationEmail } from "@/lib/serviceReservationEmail";
 
 const DAY_KEYS = [
   "domingo",
@@ -306,7 +307,37 @@ export async function POST(request) {
       return created;
     });
 
-    return Response.json(reservation, { status: 201 });
+    let emailWarning = null;
+    let emailSent = false;
+    try {
+      await sendServiceReservationEmail({
+        reservationId: reservation.reservation_service_id,
+        status: "confirmed",
+        customerEmail: user.email,
+        customerName: `${customerName} ${customerSurname}`.trim(),
+        serviceName: context.item.item_name1,
+        outletName: context.outlet.outlet_name1 || "Outlet",
+        startAt: new Date(`${date}T${startTime}:00.000Z`),
+        durationMinutes: reservation.duration_minutes,
+      });
+      emailSent = true;
+    } catch (emailError) {
+      console.error(
+        `Não foi possível enviar o email da reserva de serviço #${reservation.reservation_service_id}.`,
+        emailError
+      );
+      emailWarning =
+        "A reserva foi criada, mas não foi possível enviar o email de confirmação.";
+    }
+
+    return Response.json(
+      {
+        ...reservation,
+        emailSent,
+        ...(emailWarning ? { emailWarning } : {}),
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Não foi possível guardar a reserva de serviço.", error);
     return Response.json(

@@ -74,6 +74,7 @@ export default function ServiceReservationsPage() {
   const [updatingReservationId, setUpdatingReservationId] = useState(null);
   const [updateError, setUpdateError] = useState("");
   const [updateSuccess, setUpdateSuccess] = useState("");
+  const [updateEmailWarning, setUpdateEmailWarning] = useState("");
   const [editingReservation, setEditingReservation] = useState(null);
   const [draftStatus, setDraftStatus] = useState("");
 
@@ -96,6 +97,7 @@ export default function ServiceReservationsPage() {
 
       setReservations(data);
       setUpdateSuccess("");
+      setUpdateEmailWarning("");
     } catch (error) {
       console.error(error);
       setLoadingError(
@@ -127,6 +129,7 @@ export default function ServiceReservationsPage() {
     setEditingReservation(reservation);
     setDraftStatus(reservation.status || "");
     setUpdateError("");
+    setUpdateEmailWarning("");
   }
 
   async function updateReservationStatus() {
@@ -147,6 +150,7 @@ export default function ServiceReservationsPage() {
     setUpdatingReservationId(reservationId);
     setUpdateError("");
     setUpdateSuccess("");
+    setUpdateEmailWarning("");
     try {
       const response = await fetch(
         `/api/service-reservations/manage/${reservationId}`,
@@ -172,9 +176,14 @@ export default function ServiceReservationsPage() {
         )
       );
       setEditingReservation(null);
-      setUpdateSuccess(
-        `Estado da reserva #${reservationId} atualizado para "${getStatusLabel(draftStatus)}".`
-      );
+      setUpdateEmailWarning(updatedReservation.emailWarning || "");
+      setUpdateSuccess(`Estado da reserva #${reservationId} atualizado para "${getStatusLabel(draftStatus)}".${
+        updatedReservation.emailWarning
+          ? ""
+          : updatedReservation.emailSent
+            ? ` Foi enviado um email para ${updatedReservation.customer_email}.`
+            : " Não foi enviado um novo email porque o estado já estava atualizado."
+      }`);
     } catch (error) {
       console.error(error);
       setUpdateError(
@@ -441,6 +450,14 @@ export default function ServiceReservationsPage() {
           className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800"
         >
           {updateSuccess}
+        </p>
+      )}
+      {updateEmailWarning && (
+        <p
+          role="alert"
+          className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800"
+        >
+          {updateEmailWarning}
         </p>
       )}
 
