@@ -90,6 +90,7 @@ const sidebarSections = [
         children: [
           { name: "Personalização", path: "/backend/personalize" },
           { name: "Linguagens", path: "/backend/languages" },
+          { name: "Permissões", path: "/backend/permissions" },
           { name: "Configurações", path: "/backend/advancedConfigurations" },
         ],
       },
