@@ -71,16 +71,49 @@ export async function PATCH() {
     const { user, response } = await getAuthenticatedUser();
     if (response) return response;
 
+    const [unreadCount, totalCount] = await Promise.all([
+      prisma.notifications.count({
+        where: {
+          user_id: user.id,
+          OR: [{ is_read: false }, { is_read: null }],
+        },
+      }),
+      prisma.notifications.count({ where: { user_id: user.id } }),
+    ]);
+
     await prisma.notifications.updateMany({
       where: { user_id: user.id },
       data: { is_read: true },
     });
 
-    return Response.json(await findUserNotifications(user.id));
+    return Response.json({
+      notifications: await findUserNotifications(user.id),
+      unreadCount,
+      totalCount,
+    });
   } catch (error) {
     console.error("Erro ao marcar notificações como lidas:", error);
     return Response.json(
       { message: "Não foi possível marcar as notificações como lidas." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE() {
+  try {
+    const { user, response } = await getAuthenticatedUser();
+    if (response) return response;
+
+    const result = await prisma.notifications.deleteMany({
+      where: { user_id: user.id },
+    });
+
+    return Response.json({ deletedCount: result.count });
+  } catch (error) {
+    console.error("Erro ao descartar notificações:", error);
+    return Response.json(
+      { message: "Não foi possível descartar as notificações." },
       { status: 500 }
     );
   }

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TbClockHour3 } from "react-icons/tb";
-import { FiArrowLeft, FiMenu } from "react-icons/fi";
+import { FiArrowLeft, FiMenu, FiTrash2 } from "react-icons/fi";
 import "./loading.css";
 import { IoIosLogOut } from "react-icons/io";
 import { CiUser } from "react-icons/ci";
@@ -120,10 +120,34 @@ export default function Homepage() {
   const [pendingPostLoginPath, setPendingPostLoginPath] = useState(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [notificationSummary, setNotificationSummary] = useState({
+    unreadCount: 0,
+    totalCount: 0,
+  });
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsDeleting, setNotificationsDeleting] = useState(false);
   const [notificationsError, setNotificationsError] = useState("");
+  const notificationsRef = useRef(null);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const t = useTranslations();
+
+  useEffect(() => {
+    if (!notificationsOpen) return;
+
+    function closeNotificationsOnOutsideClick(event) {
+      if (!notificationsRef.current?.contains(event.target)) {
+        setNotificationsOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", closeNotificationsOnOutsideClick);
+    return () => {
+      document.removeEventListener(
+        "pointerdown",
+        closeNotificationsOnOutsideClick
+      );
+    };
+  }, [notificationsOpen]);
 
   function openTableReservation(outletId) {
     const outlet = outlets.find(
@@ -358,6 +382,14 @@ export default function Homepage() {
 
   async function toggleNotifications() {
     const shouldOpen = !notificationsOpen;
+    if (shouldOpen) {
+      setNotificationSummary({
+        unreadCount: notifications.filter(
+          (notification) => !notification.is_read
+        ).length,
+        totalCount: notifications.length,
+      });
+    }
     setNotificationsOpen(shouldOpen);
 
     if (!shouldOpen) return;
@@ -379,11 +411,21 @@ export default function Homepage() {
       }
 
       const data = await response.json();
-      if (!Array.isArray(data)) {
-        throw new TypeError("A API de notificações deve devolver uma lista.");
+      if (
+        !Array.isArray(data?.notifications) ||
+        !Number.isInteger(data.unreadCount) ||
+        !Number.isInteger(data.totalCount)
+      ) {
+        throw new TypeError(
+          "A API de notificações deve devolver a lista e as respetivas contagens."
+        );
       }
 
-      setNotifications(data);
+      setNotifications(data.notifications);
+      setNotificationSummary({
+        unreadCount: data.unreadCount,
+        totalCount: data.totalCount,
+      });
     } catch (error) {
       console.error("Erro ao carregar notificações:", error);
       setNotificationsError(
@@ -391,6 +433,33 @@ export default function Homepage() {
       );
     } finally {
       setNotificationsLoading(false);
+    }
+  }
+
+  async function clearNotifications() {
+    setNotificationsDeleting(true);
+    setNotificationsError("");
+
+    try {
+      const response = await fetch("/api/notifications", {
+        method: "DELETE",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Falha ao descartar notificações (${response.status})`
+        );
+      }
+
+      setNotifications([]);
+      setNotificationSummary({ unreadCount: 0, totalCount: 0 });
+    } catch (error) {
+      console.error("Erro ao descartar notificações:", error);
+      setNotificationsError("Não foi possível descartar as notificações.");
+    } finally {
+      setNotificationsDeleting(false);
     }
   }
 
@@ -1358,7 +1427,7 @@ export default function Homepage() {
                   {renderLanguageSelector("compact")}
                 </div>
 
-                <div className="relative">
+                <div ref={notificationsRef} className="relative">
                   <button
                     type="button"
                     onClick={toggleNotifications}
@@ -1387,8 +1456,37 @@ export default function Homepage() {
                         borderColor: "rgba(255,255,255,0.5)",
                       }}
                     >
-                      <div className="border-b border-gray-200/60 px-4 py-3">
-                        <h2 className="text-sm font-semibold">Notificações</h2>
+                      <div className="flex items-center justify-between border-b border-gray-200/60 px-4 py-3">
+                        <div>
+                          <h2 className="text-sm font-semibold">
+                            Notificações
+                          </h2>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {notificationSummary.unreadCount > 0
+                              ? `${notificationSummary.unreadCount} ${
+                                  notificationSummary.unreadCount === 1
+                                    ? "notificação por ler"
+                                    : "notificações por ler"
+                                }`
+                              : `Total de ${notificationSummary.totalCount} ${
+                                  notificationSummary.totalCount === 1
+                                    ? "notificação"
+                                    : "notificações"
+                                }`}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={clearNotifications}
+                          disabled={
+                            notificationsLoading || notificationsDeleting
+                          }
+                          aria-label="Descartar todas as notificações"
+                          title="Descartar todas as notificações"
+                          className="rounded-full p-2 text-gray-500 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <FiTrash2 size={18} aria-hidden="true" />
+                        </button>
                       </div>
                       <div className="max-h-80 overflow-y-auto">
                         {notificationsLoading ? (
