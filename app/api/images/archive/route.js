@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { Zip, ZipPassThrough } from "fflate";
 import { authOptions } from "@/lib/auth-options";
 import { s3 } from "@/lib/minio";
+import { getRequestHotelConfig } from "@/lib/requestHotelConfig";
 
 function getArchiveFileName(key, index) {
   const fileName = key
@@ -37,7 +38,7 @@ export async function POST(request) {
     }
 
     const keys = [...new Set(body.keys)];
-    const bucket = process.env.MINIO_BUCKET;
+    const { MINIO_BUCKET: bucket } = await getRequestHotelConfig();
     if (!bucket) {
       return Response.json(
         { error: "O armazenamento de imagens não está configurado." },

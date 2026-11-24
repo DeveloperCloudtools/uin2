@@ -1,0 +1,16 @@
+[
+  {
+    "subdomain": "hoteldemo",
+    "connectionString": "${HOTEL_TESTE_DATABASE_URL}",
+    "NEXTAUTH_URL": "${HOTEL_TESTE_NEXTAUTH_URL}",
+    "PROJECT_URL": "${HOTEL_TESTE_PROJECT_URL}",
+    "MINIO_BUCKET": "${HOTEL_TESTE_MINIO_BUCKET}"
+  },
+  {
+    "subdomain": "hoteldemo2",
+    "connectionString": "${HOTEL_TESTE2_DATABASE_URL}",
+    "NEXTAUTH_URL": "${HOTEL_TESTE2_NEXTAUTH_URL}",
+    "PROJECT_URL": "${HOTEL_TESTE2_PROJECT_URL}",
+    "MINIO_BUCKET": "${HOTEL_TESTE2_MINIO_BUCKET}"
+  }
+]

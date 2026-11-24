@@ -1,9 +1,9 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { getRequestHotelConfig } from "@/lib/requestHotelConfig";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 import { decryptEmailPassword } from "@/lib/email";
 
-const prisma = new PrismaClient();
 
 function generateCode() {
     return crypto.randomInt(100000, 1000000).toString();
@@ -182,7 +182,11 @@ export async function POST(req) {
         });
 
         // Enviar email
-        const projectUrl = process.env.PROJECT_URL;
+        const { PROJECT_URL, NEXTAUTH_URL } = await getRequestHotelConfig();
+        const projectUrl = (PROJECT_URL || NEXTAUTH_URL)?.replace(/\/+$/, "");
+        if (!projectUrl) {
+            throw new Error("PROJECT_URL não está configurada para este hotel.");
+        }
 
 await transporter.sendMail({
     from: emailSettings.reply_email,

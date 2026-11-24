@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import nodemailer from "nodemailer";
 import { decryptEmailPassword } from "@/lib/email";
 
-const prisma = new PrismaClient();
 
 // --------------------------------------------------
 // Gerar código aleatório de 6 dígitos

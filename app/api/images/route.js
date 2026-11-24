@@ -5,12 +5,13 @@ import {
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { s3 } from "@/lib/minio";
+import { getRequestHotelConfig } from "@/lib/requestHotelConfig";
 
 export async function GET() {
-  const bucket = process.env.MINIO_BUCKET;
   const endpoint = process.env.MINIO_ENDPOINT?.replace(/\/+$/, "");
 
   try {
+    const { MINIO_BUCKET: bucket } = await getRequestHotelConfig();
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return Response.json({ error: "Não autenticado." }, { status: 401 });
@@ -98,7 +99,7 @@ export async function DELETE(request) {
     }
 
     const keys = [...new Set(requestedKeys)];
-    const bucket = process.env.MINIO_BUCKET;
+    const { MINIO_BUCKET: bucket } = await getRequestHotelConfig();
     if (!bucket) {
       return Response.json(
         { error: "O armazenamento de imagens não está configurado." },

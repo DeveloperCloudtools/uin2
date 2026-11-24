@@ -1,5 +1,34 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Multi-hotel databases
+
+The application selects a database from the first label in the request host.
+For example, `teste.example.com` uses the hotel whose `subdomain` is `Teste`.
+Keep each hotel in the root-level `hotels.json` and set its
+`connectionString` to an environment-variable reference such as
+`${HOTEL_TESTE_DATABASE_URL}`. Copy `.env.example` to `.env` and set the
+connection strings and each hotel's `NEXTAUTH_URL`, `PROJECT_URL`, and
+`MINIO_BUCKET` there. The local `.env` file is ignored by Git. Docker Compose
+passes all variables from `.env` into the container, so new `HOTEL_*` variables
+do not need separate entries in `docker-compose.yml`.
+
+The reverse proxy must preserve the incoming `Host` header. Hosts that do not
+match a configured hotel are rejected; `localhost` uses `DATABASE_URL` for
+local development. For each hotel, define the variables referenced by its
+`connectionString`, `NEXTAUTH_URL`, `PROJECT_URL`, and `MINIO_BUCKET` in
+`.env`. NextAuth uses the configured hotel's `NEXTAUTH_URL` for redirects and
+trusts `x-forwarded-host` and `x-forwarded-proto`, so the reverse proxy must
+overwrite those headers with the public request host and protocol.
+
+Apply the Prisma migrations to every configured hotel, in sequence, with:
+
+```bash
+npm run db:migrate:all
+```
+
+The command stops with a failing exit code if any hotel cannot be migrated.
+Make sure `.env` is available to the process before running it.
+
 ## Getting Started
 
 First, run the development server:

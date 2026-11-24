@@ -2,6 +2,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { s3 } from "@/lib/minio";
+import { getRequestHotelConfig } from "@/lib/requestHotelConfig";
 
 export async function GET(request) {
   try {
@@ -18,7 +19,7 @@ export async function GET(request) {
       );
     }
 
-    const bucket = process.env.MINIO_BUCKET;
+    const { MINIO_BUCKET: bucket } = await getRequestHotelConfig();
     if (!bucket) {
       return Response.json(
         { error: "O armazenamento de imagens não está configurado." },

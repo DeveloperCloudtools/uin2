@@ -11,11 +11,11 @@ RUN npm install
 # Copy entire project (including server.js and prisma folder)
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate
+# Prisma generation validates the datasource URL but does not connect to it.
+ARG DATABASE_URL="mysql://build:build@127.0.0.1:3306/build"
 
-# Build your Next.js application
-RUN npm run build
+# Build the application with a placeholder URL; runtime uses the configured hotel URL.
+RUN DATABASE_URL="${DATABASE_URL}" npm run build
 
 # Expose the app port
 EXPOSE 3000
