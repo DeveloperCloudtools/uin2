@@ -16,6 +16,7 @@ import { IoMdNotificationsOutline } from "react-icons/io";
 import FrontendHeader from "@/components/layout/frontend/header";
 
 import { useTranslations } from "@/app/hooks/useTranslations";
+import { toCssUrl } from "@/lib/cssUrl.mjs";
 
 function isActive(value) {
   return value === true || value === 1 || value === "1";
@@ -1629,10 +1630,7 @@ export default function Homepage() {
                     className="w-full min-h-[45vh] sm:min-h-0 sm:aspect-[4/3] rounded-2xl flex items-center justify-center font-semibold cursor-pointer hover:scale-[1.02] transition overflow-hidden "
                     style={{
                       background: getCardColor(rowIndex * 10 + i),
-                      backgroundImage: `url("${encodeURI(
-                        item[cardBackgroundField] || ""
-                      )
-                        }")`,
+                      backgroundImage: toCssUrl(item[cardBackgroundField]),
                       backgroundSize: "cover",
                       backgroundPosition: "center",
                       fontFamily: theme.cardTextFont,
@@ -1760,7 +1758,7 @@ export default function Homepage() {
         style={{
           backgroundColor: personalize?.background_color || "#f3f4f6",
           backgroundImage: personalize?.background_image
-            ? `url(${encodeURI(personalize.background_image)})`
+            ? toCssUrl(personalize.background_image)
             : "none",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
@@ -1865,7 +1863,9 @@ export default function Homepage() {
                           className="w-full min-h-[30vh] sm:aspect-[4/3] rounded-2xl flex items-center justify-center font-semibold transition overflow-hidden cursor-pointer hover:scale-[1.02]"
                           style={{
                             background: getCardColor(rowIndex * 10 + itemIndex),
-                            backgroundImage: `url("${encodeURI(item[levelBackgroundField] || "")}")`,
+                            backgroundImage: toCssUrl(
+                              item[levelBackgroundField]
+                            ),
                             backgroundSize: "cover",
                             backgroundPosition: "center",
                             fontFamily: theme.cardTextFont,
