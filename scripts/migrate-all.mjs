@@ -1,10 +1,13 @@
+import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import {
-  loadHotelsConfig,
   resolveHotelConnectionString,
-} from "../lib/hotelConfig.js";
+  validateHotelsConfig,
+} from "../lib/hotelConfig.mjs";
 
-const hotels = loadHotelsConfig();
+const hotels = validateHotelsConfig(
+  JSON.parse(readFileSync(new URL("../hotels.json", import.meta.url), "utf8"))
+);
 const failedHotels = [];
 
 for (const hotel of hotels) {
