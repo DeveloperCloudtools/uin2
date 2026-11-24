@@ -1,6 +1,10 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      secrets:
+        - hotels_config
+        - database_env
     container_name: uin-app
     env_file:
       - .env
@@ -17,3 +21,9 @@ services:
       MINIO_SECRET_KEY: "N13dah1ts#2026!"
       EMAIL_PASSWORD_ENCRYPTION_KEY: "4z5S3eWNXe6KJn8zkplFaIXuiOkDtmHNtB717UVEsUeGlKZ0aLeDm7olBTIW1fC5v8YuQPQPH5IG1SyaMlElOm6EQQGxG1j7"
     restart: always
+
+secrets:
+  hotels_config:
+    file: ./hotels.json
+  database_env:
+    file: ./.env

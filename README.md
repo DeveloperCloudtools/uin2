@@ -26,8 +26,14 @@ Apply the Prisma migrations to every configured hotel, in sequence, with:
 npm run db:migrate:all
 ```
 
-The command stops with a failing exit code if any hotel cannot be migrated.
-Make sure `.env` is available to the process before running it.
+`docker compose build` runs this command before generating Prisma Client and
+building Next.js. In Docker, BuildKit mounts `.env` and `hotels.json` as
+temporary build secrets. A build may therefore change one or more databases
+even if a later migration or the application build fails. The migration command
+reports failure if any hotel could not be migrated; successful migrations are
+not rolled back. BuildKit does not use secret contents as a cache key; if only
+`.env` changes, run `docker compose build --no-cache` to force the migration
+step to execute again.
 
 ## Getting Started
 
