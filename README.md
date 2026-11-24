@@ -4,7 +4,8 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 The application selects a database from the first label in the request host.
 For example, `teste.example.com` uses the hotel whose `subdomain` is `Teste`.
-Keep each hotel in the root-level `hotels.json` and set its
+Each hotel can also define a `name`, used for the page title and metadata
+description. Keep each hotel in the root-level `hotels.json` and set its
 `connectionString` to an environment-variable reference such as
 `${HOTEL_TESTE_DATABASE_URL}`. Copy `.env.example` to `.env` and set the
 connection strings and each hotel's `NEXTAUTH_URL`, `PROJECT_URL`, and

@@ -1,6 +1,7 @@
 [
   {
     "subdomain": "hoteldemo",
+    "name": "UIN Demo",
     "connectionString": "${HOTEL_TESTE_DATABASE_URL}",
     "NEXTAUTH_URL": "${HOTEL_TESTE_NEXTAUTH_URL}",
     "PROJECT_URL": "${HOTEL_TESTE_PROJECT_URL}",
@@ -8,6 +9,7 @@
   },
   {
     "subdomain": "pedregal",
+    "name": " UIN Pedregal",
     "connectionString": "${HOTEL_TESTE2_DATABASE_URL}",
     "NEXTAUTH_URL": "${HOTEL_TESTE2_NEXTAUTH_URL}",
     "PROJECT_URL": "${HOTEL_TESTE2_PROJECT_URL}",

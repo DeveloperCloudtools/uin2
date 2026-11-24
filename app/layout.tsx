@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { getRequestHotelConfig } from "@/lib/requestHotelConfig";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,10 +13,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Demo UIN",
-  description: "Demo UIN",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { name } = await getRequestHotelConfig();
+  const hotelName = name || "UIN";
+
+  return {
+    title: hotelName,
+    description: hotelName,
+  };
+}
 
 export default function RootLayout({
   children,
