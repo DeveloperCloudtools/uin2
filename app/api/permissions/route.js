@@ -8,7 +8,6 @@ export async function GET() {
       _count: {
         select: {
           RolePermissions: true,
-          UserPermissions: true,
         },
       },
     },

@@ -1,6 +1,8 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LuChefHat,
@@ -31,7 +33,10 @@ const sidebarSections = [
         children: [
           { name: "Pedidos", path: "/backend/orders" },
           { name: "Reservas de mesa", path: "/backend/reservations" },
-          { name: "Reservas de serviços", path: "/backend/service-reservations" },
+          {
+            name: "Reservas de serviços",
+            path: "/backend/service-reservations",
+          },
         ],
       },
     ],
@@ -72,7 +77,10 @@ const sidebarSections = [
         name: "Pontos de acesso",
         icon: LuMapPin,
         children: [
-          { name: "Grupos de pontos de acesso", path: "/backend/accessPointGroups" },
+          {
+            name: "Grupos de pontos de acesso",
+            path: "/backend/accessPointGroups",
+          },
           { name: "Pontos de acesso", path: "/backend/accessPoints" },
         ],
       },
@@ -88,10 +96,16 @@ const sidebarSections = [
         name: "Sistema",
         icon: LuSettings,
         children: [
+          { name: "Utilizadores BO", path: "/backend/users-bo" },
+          { name: "Utilizadores FO", path: "/backend/users-fo" },
+          { name: "Roles BO", path: "/backend/roles" },
           { name: "Personalização", path: "/backend/personalize" },
           { name: "Linguagens", path: "/backend/languages" },
           { name: "Permissões", path: "/backend/permissions" },
-          { name: "Configurações", path: "/backend/advancedConfigurations" },
+          {
+            name: "Configurações",
+            path: "/backend/advancedConfigurations",
+          },
         ],
       },
       {
@@ -103,30 +117,82 @@ const sidebarSections = [
   },
 ];
 
+// Permissões necessárias para cada página
+const pagePermissions = {
+  "/backend/reservations": "reservations.view",
+  "/backend/orders": "orders.view",
+  "/backend/service-reservations": "services.view",
+  "/backend/permissions": "permissions",
+  "/backend/roles": "roles",
+  "/backend/users-bo": "usersbo",
+  "/backend/users-fo": "usersfo.view",
+  "/backend/advancedConfigurations": "settingspwd",
+};
+
 export default function Sidebar({ collapsed, setCollapsed }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [expandedGroups, setExpandedGroups] = useState(() => {
-    const activeGroup = sidebarSections
-      .flatMap((section) => section.items)
-      .find((item) =>
-        item.children?.some((child) => child.path === pathname)
-      );
-    return activeGroup ? [activeGroup.name] : [];
-  });
+
+  const { data: session, status } = useSession();
+
+  const permissionKeys = session?.user?.permissionKeys || [];
+  const isAdministrator = session?.user?.isAdministrator === true;
+
+  // Verifica se o utilizador pode aceder à página
+  function hasPermission(path) {
+    const requiredPermission = pagePermissions[path];
+
+    // Páginas sem permissão específica continuam visíveis
+    if (!requiredPermission) return true;
+
+    // Administrator tem acesso total
+    if (isAdministrator) return true;
+
+    return permissionKeys.includes(requiredPermission);
+  }
+
+  // Filtra páginas e grupos sem permissões
+  const visibleSidebarSections = sidebarSections
+    .map((section) => ({
+      ...section,
+      items: section.items
+        .map((item) => {
+          if (item.children) {
+            const visibleChildren = item.children.filter((child) =>
+              hasPermission(child.path)
+            );
+
+            if (visibleChildren.length === 0) return null;
+
+            return {
+              ...item,
+              children: visibleChildren,
+            };
+          }
+
+          return hasPermission(item.path) ? item : null;
+        })
+        .filter(Boolean),
+    }))
+    .filter((section) => section.items.length > 0);
+
+  const [expandedGroups, setExpandedGroups] = useState([]);
 
   useEffect(() => {
-    const activeGroup = sidebarSections
+    const activeGroup = visibleSidebarSections
       .flatMap((section) => section.items)
       .find((item) =>
         item.children?.some((child) => child.path === pathname)
       );
+
     if (activeGroup) {
       setExpandedGroups((groups) =>
-        groups.includes(activeGroup.name) ? groups : [...groups, activeGroup.name]
+        groups.includes(activeGroup.name)
+          ? groups
+          : [...groups, activeGroup.name]
       );
     }
-  }, [pathname]);
+  }, [pathname, status]);
 
   function toggleGroup(name) {
     if (collapsed) {
@@ -160,6 +226,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
             Backend
           </span>
         )}
+
         <button
           type="button"
           onClick={() => setCollapsed(!collapsed)}
@@ -175,10 +242,13 @@ export default function Sidebar({ collapsed, setCollapsed }) {
         className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-3"
       >
         <div className="flex flex-col gap-1">
+          {/* Dashboard */}
           <button
             type="button"
             onClick={() => navigate(dashboardItem.path)}
-            aria-current={dashboardItem.path === pathname ? "page" : undefined}
+            aria-current={
+              dashboardItem.path === pathname ? "page" : undefined
+            }
             title={collapsed ? dashboardItem.name : undefined}
             className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
               dashboardItem.path === pathname
@@ -194,26 +264,35 @@ export default function Sidebar({ collapsed, setCollapsed }) {
                   : "text-gray-500 group-hover:text-gray-700"
               }`}
             />
+
             {!collapsed && (
-              <span className="text-sm font-medium">{dashboardItem.name}</span>
+              <span className="text-sm font-medium">
+                {dashboardItem.name}
+              </span>
             )}
           </button>
 
-          {sidebarSections.map((section) => (
+          {/* Secções filtradas pelas permissões */}
+          {visibleSidebarSections.map((section) => (
             <section key={section.name}>
               {!collapsed && (
                 <h2 className="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-gray-400">
                   {section.name}
                 </h2>
               )}
+
               {section.items.map((item) => {
                 const Icon = item.icon;
+
                 const isPageActive = item.path === pathname;
+
                 const isGroupActive = item.children?.some(
                   (child) => child.path === pathname
                 );
+
                 const isExpanded = expandedGroups.includes(item.name);
 
+                // Item individual
                 if (item.path) {
                   return (
                     <button
@@ -236,13 +315,17 @@ export default function Sidebar({ collapsed, setCollapsed }) {
                             : "text-gray-500 group-hover:text-gray-700"
                         }`}
                       />
+
                       {!collapsed && (
-                        <span className="text-sm font-medium">{item.name}</span>
+                        <span className="text-sm font-medium">
+                          {item.name}
+                        </span>
                       )}
                     </button>
                   );
                 }
 
+                // Grupo com subpáginas
                 return (
                   <div key={item.name}>
                     <button
@@ -264,11 +347,13 @@ export default function Sidebar({ collapsed, setCollapsed }) {
                             : "text-gray-500 group-hover:text-gray-700"
                         }`}
                       />
+
                       {!collapsed && (
                         <>
                           <span className="min-w-0 flex-1 text-sm font-medium">
                             {item.name}
                           </span>
+
                           <LuChevronDown
                             aria-hidden="true"
                             className={`h-4 w-4 shrink-0 transition-transform ${
@@ -289,7 +374,9 @@ export default function Sidebar({ collapsed, setCollapsed }) {
                               key={child.path}
                               type="button"
                               onClick={() => navigate(child.path)}
-                              aria-current={isActive ? "page" : undefined}
+                              aria-current={
+                                isActive ? "page" : undefined
+                              }
                               className={`rounded-lg px-3 py-2 text-left text-sm transition ${
                                 isActive
                                   ? "bg-red-50 font-medium text-red-600"

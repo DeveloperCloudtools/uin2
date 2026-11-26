@@ -116,13 +116,16 @@ model PreparationGroups {
 }
 
 model Users {
-  user_id      Int       @id @default(autoincrement())
-  username     String    @db.VarChar(100)
-  created_at   DateTime? @default(now()) @db.DateTime(0)
-  last_login   DateTime? @db.DateTime(0)
-  password     String    @db.VarChar(255)
-  type         Int?      @db.TinyInt
-  user_type_id Int?
+  user_id         Int               @id @default(autoincrement())
+  username        String            @db.VarChar(100)
+  created_at      DateTime?         @default(now()) @db.DateTime(0)
+  last_login      DateTime?         @db.DateTime(0)
+  password        String            @db.VarChar(255)
+  type            Int?              @db.TinyInt
+  user_type_id    Int?
+  active          Boolean           @default(true)
+  expired_at      DateTime?         @db.Date
+  UserPermissions UserPermissions[]
 }
 
 model Users_FO {
@@ -583,7 +586,6 @@ model UsersBOType {
   userName        String?           @db.VarChar(100)
   userDesc        String?           @db.VarChar(255)
   RolePermissions RolePermissions[]
-  UserPermissions UserPermissions[]
 }
 
 model UsersFOType {
@@ -622,7 +624,7 @@ model UserPermissions {
   effect        UserPermissions_effect
   created_at    DateTime?              @default(now()) @db.Timestamp(0)
   updated_at    DateTime?              @default(now()) @db.Timestamp(0)
-  UsersBOType   UsersBOType            @relation(fields: [user_id], references: [userBOTypeID], onDelete: Cascade, onUpdate: NoAction, map: "UserPermissions_ibfk_1")
+  User          Users                  @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "UserPermissions_ibfk_1")
   Permissions   Permissions            @relation(fields: [permission_id], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "UserPermissions_ibfk_2")
 
   @@unique([user_id, permission_id], map: "UQ_UserPermission")
