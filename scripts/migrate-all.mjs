@@ -1,13 +1,14 @@
 
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+
 import {
   resolveHotelConnectionString,
-  validateHotelsConfig,
+  getValidatedHotels,
 } from "../lib/hotelConfigCore.mjs";
 
-// Ler e validar a configuração dos hotéis
-const hotels = validateHotelsConfig(
+// Ler configuração dos hotéis
+const hotels = getValidatedHotels(
   JSON.parse(
     readFileSync(
       new URL("../hotels.json", import.meta.url),
@@ -20,11 +21,11 @@ const failedHotels = [];
 
 console.log(`Foram encontrados ${hotels.length} hotéis.`);
 
-// Aplicar migrações individualmente em cada base de dados
+// Aplicar migrações em cada hotel
 for (const hotel of hotels) {
-  console.log(`\n----------------------------------------`);
+  console.log("\n----------------------------------------");
   console.log(`Hotel: ${hotel.subdomain}`);
-  console.log(`----------------------------------------`);
+  console.log("----------------------------------------");
 
   let databaseUrl;
 
@@ -42,7 +43,9 @@ for (const hotel of hotels) {
     continue;
   }
 
-  console.log(`A aplicar migrações no hotel ${hotel.subdomain}...`);
+  console.log(
+    `A aplicar migrações no hotel ${hotel.subdomain}...`
+  );
 
   const result = spawnSync(
     "npm",
@@ -82,12 +85,14 @@ console.log("\n========================================");
 
 if (failedHotels.length > 0) {
   console.error(
-    `Migrações falhadas nos seguintes hotéis: ${failedHotels.join(", ")}.`
+    `Migrações falhadas: ${failedHotels.join(", ")}.`
   );
 
   process.exitCode = 1;
 } else {
-  console.log("Migrações aplicadas com sucesso em todos os hotéis.");
+  console.log(
+    "Migrações aplicadas com sucesso em todos os hotéis."
+  );
 }
 
 console.log("========================================");
