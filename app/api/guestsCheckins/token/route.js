@@ -23,18 +23,42 @@ export async function POST(request) {
       ? forwardedFor.split(",")[0].trim()
       : "unknown";
 
+    // Ler os dados enviados
+    const body = await request.json();
+
+    // Registar pedido recebido (sem expor passwords)
+    console.log("[GuestsCheckins] Pedido recebido:", {
+      ip,
+      username: body?.username,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Função para registar e devolver respostas
+    const respond = (data, status = 200, options = {}) => {
+      console.log("[GuestsCheckins] Resposta enviada:", {
+        status,
+        body: data,
+        timestamp: new Date().toISOString(),
+      });
+
+      return NextResponse.json(data, {
+        status,
+        ...options,
+      });
+    };
+
     // Verificar se o IP está bloqueado
     const rateLimit = checkLoginAttempts(ip);
 
     if (rateLimit.blocked) {
-      return NextResponse.json(
+      return respond(
         {
           success: false,
           message: "Too many failed login attempts. Try again later.",
           retry_after: rateLimit.remainingTime,
         },
+        429,
         {
-          status: 429,
           headers: {
             "Retry-After": String(rateLimit.remainingTime),
           },
@@ -45,16 +69,14 @@ export async function POST(request) {
     // Obter configuração do hotel
     const hotelConfig = await getRequestHotelConfig();
 
-    // Ler os dados enviados
-    const body = await request.json();
-
+    // Validar JSON
     if (!body || typeof body !== "object" || Array.isArray(body)) {
-      return NextResponse.json(
+      return respond(
         {
           success: false,
           message: "Invalid JSON body",
         },
-        { status: 400 }
+        400
       );
     }
 
@@ -67,21 +89,20 @@ export async function POST(request) {
       !username.trim() ||
       !password
     ) {
-      return NextResponse.json(
+      return respond(
         {
           success: false,
           message: "Username and password are required",
         },
-        { status: 400 }
+        400
       );
     }
 
     // Validar credenciais
     if (!validateCredentials(username, password, hotelConfig)) {
-
       const result = registerFailedAttempt(ip);
 
-      return NextResponse.json(
+      return respond(
         {
           success: false,
           message: result.blocked
@@ -89,9 +110,7 @@ export async function POST(request) {
             : "Invalid credentials",
           attempts_remaining: result.attemptsRemaining,
         },
-        {
-          status: result.blocked ? 429 : 401,
-        }
+        result.blocked ? 429 : 401
       );
     }
 
@@ -101,7 +120,7 @@ export async function POST(request) {
     // Gerar Guest Token
     const token = generateToken(hotelConfig.subdomain);
 
-    return NextResponse.json({
+    return respond({
       success: true,
       token,
       token_type: "Bearer",
@@ -109,7 +128,16 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error("GuestsCheckins token error:", error);
+    console.error("[GuestsCheckins] Erro:", error);
+
+    console.log("[GuestsCheckins] Resposta enviada:", {
+      status: 500,
+      body: {
+        success: false,
+        message: "Internal server error",
+      },
+      timestamp: new Date().toISOString(),
+    });
 
     return NextResponse.json(
       {
