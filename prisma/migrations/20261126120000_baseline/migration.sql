@@ -692,6 +692,35 @@ CREATE TABLE IF NOT EXISTS `UserPermissions` (
     PRIMARY KEY (`Id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
+CREATE TABLE IF NOT EXISTS `GuestsCheckinsReservations` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `reservation_number` VARCHAR(100) NOT NULL,
+    `room_number` VARCHAR(50) NULL,
+    `checkin_date` DATETIME(0) NULL,
+    `checkout_date` DATETIME(0) NULL,
+    `reservation_adults` INTEGER NULL,
+    `reservation_childs` INTEGER NULL,
+    `reservation_status` VARCHAR(100) NULL,
+    `guest_id` INTEGER NULL,
+    `guest_type` ENUM('titular', 'acompanhante') NOT NULL DEFAULT 'titular',
+    `guest_name` VARCHAR(150) NULL,
+    `guest_surname` VARCHAR(150) NULL,
+    `birth_date` DATETIME(0) NULL,
+    `gender` VARCHAR(10) NULL,
+    `nationality` VARCHAR(100) NULL,
+    `country` VARCHAR(100) NULL,
+    `email` VARCHAR(255) NULL,
+    `phone_number` VARCHAR(50) NULL,
+    `created_at` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `updated_at` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    INDEX `idx_guest_id` (`guest_id`),
+    INDEX `idx_reservation_number` (`reservation_number`),
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- AddForeignKey
 ALTER TABLE `Menus` ADD CONSTRAINT `Menus_ibfk_1` FOREIGN KEY (`outlet_id`) REFERENCES `Outlets`(`outlet_id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
 

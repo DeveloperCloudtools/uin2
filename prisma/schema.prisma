@@ -631,7 +631,38 @@ model UserPermissions {
   @@index([permission_id], map: "permission_id")
 }
 
+model GuestsCheckinsReservations {
+  id                 Int                                   @id @default(autoincrement())
+  reservation_number String                                @db.VarChar(100)
+  room_number        String?                               @db.VarChar(50)
+  checkin_date       DateTime?                             @db.DateTime(0)
+  checkout_date      DateTime?                             @db.DateTime(0)
+  reservation_adults Int?
+  reservation_childs Int?
+  reservation_status String?                               @db.VarChar(100)
+  guest_id           Int?
+  guest_type         GuestsCheckinsReservations_guest_type @default(titular)
+  guest_name         String?                               @db.VarChar(150)
+  guest_surname      String?                               @db.VarChar(150)
+  birth_date         DateTime?                             @db.DateTime(0)
+  gender             String?                               @db.VarChar(10)
+  nationality        String?                               @db.VarChar(100)
+  country            String?                               @db.VarChar(100)
+  email              String?                               @db.VarChar(255)
+  phone_number       String?                               @db.VarChar(50)
+  created_at         DateTime?                             @default(now()) @db.Timestamp(0)
+  updated_at         DateTime?                             @default(now()) @db.Timestamp(0)
+
+  @@index([guest_id], map: "idx_guest_id")
+  @@index([reservation_number], map: "idx_reservation_number")
+}
+
 enum UserPermissions_effect {
   ALLOW
   DENY
+}
+
+enum GuestsCheckinsReservations_guest_type {
+  titular
+  acompanhante
 }
