@@ -4,7 +4,7 @@ import crypto from "crypto";
 import nodemailer from "nodemailer";
 
 import { prisma } from "@/lib/prisma";
-import { getRequestHotelConfig } from "@/lib/hotelConfig";
+import { getRequestHotelConfig } from "@/lib/requestHotelConfig";
 import { decryptEmailPassword } from "@/lib/email";
 
 // Gerar código de 6 dígitos

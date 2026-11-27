@@ -1,4 +1,3 @@
-
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
@@ -15,7 +14,6 @@ function parseDate(value) {
     throw new Error("Invalid date format");
   }
 
-  // Os valores sem timezone são interpretados como UTC
   const normalized = /(?:Z|[+-]\d{2}:\d{2})$/i.test(value)
     ? value
     : `${value}Z`;
@@ -80,14 +78,32 @@ function createGuestData(reservation, guest, guestType) {
 }
 
 export async function POST(request) {
+  console.log("");
+  console.log("============================================");
+  console.log("🚀 [CHECKINS] POST REQUEST RECEIVED");
+  console.log("============================================");
+
   try {
     // 1. Obter configuração do hotel
+    console.log("🏨 [CHECKINS] Getting hotel configuration...");
+
     const hotelConfig = await getRequestHotelConfig();
 
+    console.log("🏨 [CHECKINS] Hotel subdomain:", hotelConfig.subdomain);
+
     // 2. Validar Bearer Token
+    console.log("🔐 [CHECKINS] Validating authorization...");
+
     const authorization = request.headers.get("authorization");
 
+    console.log(
+      "🔐 [CHECKINS] Authorization header received:",
+      !!authorization
+    );
+
     if (!authorization || !authorization.startsWith("Bearer ")) {
+      console.log("❌ [CHECKINS] Bearer token missing");
+
       return NextResponse.json(
         {
           success: false,
@@ -99,7 +115,11 @@ export async function POST(request) {
 
     const token = authorization.substring(7).trim();
 
+    console.log("🔐 [CHECKINS] Token received:", !!token);
+
     if (!token || !validateToken(token, hotelConfig.subdomain)) {
+      console.log("❌ [CHECKINS] Invalid or expired token");
+
       return NextResponse.json(
         {
           success: false,
@@ -109,12 +129,37 @@ export async function POST(request) {
       );
     }
 
+    console.log("✅ [CHECKINS] Token validated successfully");
+
     // 3. Ler JSON
+    console.log("📥 [CHECKINS] Reading request JSON...");
+
     let body;
 
     try {
       body = await request.json();
-    } catch {
+
+      console.log("✅ [CHECKINS] JSON received successfully");
+
+      console.log(
+        "📥 [CHECKINS] Body type:",
+        Array.isArray(body) ? "Array" : typeof body
+      );
+
+      console.log(
+        "📥 [CHECKINS] Reservations received:",
+        Array.isArray(body) ? body.length : "Not an array"
+      );
+
+      // Mostrar dados recebidos
+      console.log(
+        "📥 [CHECKINS] Complete received body:",
+        JSON.stringify(body, null, 2)
+      );
+
+    } catch (error) {
+      console.error("❌ [CHECKINS] Invalid JSON:", error);
+
       return NextResponse.json(
         {
           success: false,
@@ -125,7 +170,11 @@ export async function POST(request) {
     }
 
     // 4. Validar estrutura principal
+    console.log("🔎 [CHECKINS] Validating reservation structure...");
+
     if (!Array.isArray(body) || body.length === 0) {
+      console.log("❌ [CHECKINS] Body is not a valid non-empty array");
+
       return NextResponse.json(
         {
           success: false,
@@ -136,6 +185,11 @@ export async function POST(request) {
     }
 
     for (const reservation of body) {
+      console.log(
+        "🔎 [CHECKINS] Validating reservation:",
+        reservation?.reservation_number
+      );
+
       if (
         !reservation ||
         typeof reservation !== "object" ||
@@ -144,6 +198,8 @@ export async function POST(request) {
         !reservation.reservation_number.trim() ||
         !Array.isArray(reservation.attachedprofiles)
       ) {
+        console.log("❌ [CHECKINS] Invalid reservation data");
+
         return NextResponse.json(
           {
             success: false,
@@ -153,12 +209,19 @@ export async function POST(request) {
         );
       }
 
+      console.log(
+        "👥 [CHECKINS] Attached profiles:",
+        reservation.attachedprofiles.length
+      );
+
       for (const profile of reservation.attachedprofiles) {
         if (
           !profile ||
           typeof profile !== "object" ||
           Array.isArray(profile)
         ) {
+          console.log("❌ [CHECKINS] Invalid attached profile data");
+
           return NextResponse.json(
             {
               success: false,
@@ -170,32 +233,64 @@ export async function POST(request) {
       }
     }
 
+    console.log("✅ [CHECKINS] Reservation structure validated");
+
     // 5. Preparar todos os registos antes de gravar
+    console.log("⚙️ [CHECKINS] Preparing guest records...");
+
     const guestsToInsert = [];
 
     try {
       for (const reservation of body) {
+        console.log(
+          "⚙️ [CHECKINS] Processing reservation:",
+          reservation.reservation_number
+        );
+
         // Titular
-        guestsToInsert.push(
-          createGuestData(
-            reservation,
-            reservation,
-            "titular"
-          )
+        const titular = createGuestData(
+          reservation,
+          reservation,
+          "titular"
+        );
+
+        guestsToInsert.push(titular);
+
+        console.log(
+          "👤 [CHECKINS] Titular prepared:",
+          titular.guest_name,
+          titular.guest_surname
         );
 
         // Acompanhantes
         for (const profile of reservation.attachedprofiles) {
-          guestsToInsert.push(
-            createGuestData(
-              reservation,
-              profile,
-              "acompanhante"
-            )
+          const acompanhante = createGuestData(
+            reservation,
+            profile,
+            "acompanhante"
+          );
+
+          guestsToInsert.push(acompanhante);
+
+          console.log(
+            "👥 [CHECKINS] Acompanhante prepared:",
+            acompanhante.guest_name,
+            acompanhante.guest_surname
           );
         }
       }
+
+      console.log(
+        "✅ [CHECKINS] Total guest records prepared:",
+        guestsToInsert.length
+      );
+
     } catch (error) {
+      console.error(
+        "❌ [CHECKINS] Error preparing guest records:",
+        error
+      );
+
       return NextResponse.json(
         {
           success: false,
@@ -206,69 +301,150 @@ export async function POST(request) {
     }
 
     // 6. Gravar todos os registos numa transação
+    console.log("💾 [CHECKINS] Starting Prisma transaction...");
+
     await prisma.$transaction(async (tx) => {
       for (const guest of guestsToInsert) {
+        console.log(
+          "💾 [CHECKINS] Saving guest:",
+          guest.guest_name,
+          guest.guest_surname,
+          "| Reservation:",
+          guest.reservation_number,
+          "| Type:",
+          guest.guest_type
+        );
+
         await tx.guestsCheckinsReservations.create({
           data: guest,
         });
+
+        console.log(
+          "✅ [CHECKINS] Guest saved:",
+          guest.guest_name,
+          guest.guest_surname
+        );
       }
     });
 
+    console.log("✅ [CHECKINS] All guests saved successfully");
+
     // 7. Enviar os hóspedes com email para generateLink
-let emailResult;
+    console.log("📧 [CHECKINS] Preparing email delivery...");
 
-try {
-  const guestsWithEmail = guestsToInsert.filter(
-    (guest) =>
-      typeof guest.email === "string" &&
-      guest.email.trim() !== ""
-  );
+    let emailResult;
 
-  if (guestsWithEmail.length > 0) {
-    const generateLinkUrl = new URL(
-      "/api/guestsCheckins/generateLink",
-      request.url
-    );
-
-    const response = await fetch(generateLinkUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-internal-secret":
-          process.env.GUESTS_CHECKINS_SECRET,
-      },
-      body: JSON.stringify({
-        guests: guestsWithEmail,
-      }),
-      cache: "no-store",
-    });
-
-    emailResult = await response.json();
-
-    if (!response.ok) {
-      console.error(
-        "GenerateLink API error:",
-        emailResult
+    try {
+      const guestsWithEmail = guestsToInsert.filter(
+        (guest) =>
+          typeof guest.email === "string" &&
+          guest.email.trim() !== ""
       );
+
+      console.log(
+        "📧 [CHECKINS] Guests with email:",
+        guestsWithEmail.length
+      );
+
+      console.log(
+        "📧 [CHECKINS] Guests without email:",
+        guestsToInsert.length - guestsWithEmail.length
+      );
+
+      if (guestsWithEmail.length > 0) {
+        const generateLinkUrl = new URL(
+          "/api/guestsCheckins/generateLink",
+          request.url
+        );
+
+        console.log(
+          "📧 [CHECKINS] Calling generateLink:",
+          generateLinkUrl.toString()
+        );
+
+        console.log(
+          "📧 [CHECKINS] Emails being processed:",
+          guestsWithEmail.map((guest) => ({
+            reservation_number: guest.reservation_number,
+            guest_name: guest.guest_name,
+            has_email: !!guest.email,
+          }))
+        );
+
+        const response = await fetch(generateLinkUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-internal-secret":
+              process.env.GUESTS_CHECKINS_SECRET,
+          },
+          body: JSON.stringify({
+            guests: guestsWithEmail,
+          }),
+          cache: "no-store",
+        });
+
+        console.log(
+          "📧 [CHECKINS] generateLink HTTP status:",
+          response.status
+        );
+
+        console.log(
+          "📧 [CHECKINS] generateLink response OK:",
+          response.ok
+        );
+
+        emailResult = await response.json();
+
+        console.log(
+          "📧 [CHECKINS] generateLink response body:",
+          emailResult
+        );
+
+        if (!response.ok) {
+          console.error(
+            "❌ [CHECKINS] GenerateLink API error:",
+            emailResult
+          );
+        } else {
+          console.log(
+            "✅ [CHECKINS] generateLink executed successfully"
+          );
+        }
+
+      } else {
+        console.log(
+          "⚠️ [CHECKINS] No guests with email addresses"
+        );
+
+        emailResult = {
+          success: true,
+          sent_count: 0,
+          message: "No guests with email addresses",
+        };
+      }
+
+    } catch (error) {
+      console.error(
+        "❌ [CHECKINS] GenerateLink request error:",
+        error
+      );
+
+      emailResult = {
+        success: false,
+        message: "Could not process guest emails",
+      };
     }
-  } else {
-    emailResult = {
-      success: true,
-      sent_count: 0,
-      message: "No guests with email addresses",
-    };
-  }
-} catch (error) {
-  console.error("GenerateLink request error:", error);
 
-  emailResult = {
-    success: false,
-    message: "Could not process guest emails",
-  };
-}
+    // 8. Resposta final
+    console.log("");
+    console.log("============================================");
+    console.log("✅ [CHECKINS] PROCESS COMPLETED");
+    console.log("Reservations:", body.length);
+    console.log("Guests:", guestsToInsert.length);
+    console.log("Email result:", emailResult);
+    console.log("============================================");
 
-   
-    // 8. Resposta
     return NextResponse.json(
       {
         success: true,
@@ -281,7 +457,12 @@ try {
     );
 
   } catch (error) {
-    console.error("GuestsCheckins reservation error:", error);
+    console.error("");
+    console.error("============================================");
+    console.error("❌ [CHECKINS] FATAL ERROR");
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+    console.error("============================================");
 
     return NextResponse.json(
       {
