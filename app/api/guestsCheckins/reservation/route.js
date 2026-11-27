@@ -352,9 +352,20 @@ export async function POST(request) {
       );
 
       if (guestsWithEmail.length > 0) {
+        const projectUrl = (
+          hotelConfig.PROJECT_URL ||
+          hotelConfig.NEXTAUTH_URL
+        )?.replace(/\/+$/, "");
+
+        if (!projectUrl) {
+          throw new Error(
+            "PROJECT_URL ou NEXTAUTH_URL não está configurada."
+          );
+        }
+
         const generateLinkUrl = new URL(
           "/api/guestsCheckins/generateLink",
-          request.url
+          projectUrl
         );
 
         console.log(
