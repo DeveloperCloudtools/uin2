@@ -214,13 +214,68 @@ export async function POST(request) {
       }
     });
 
-    // 7. Resposta
+    // 7. Enviar os hóspedes com email para generateLink
+let emailResult;
+
+try {
+  const guestsWithEmail = guestsToInsert.filter(
+    (guest) =>
+      typeof guest.email === "string" &&
+      guest.email.trim() !== ""
+  );
+
+  if (guestsWithEmail.length > 0) {
+    const generateLinkUrl = new URL(
+      "/api/guestsCheckins/generateLink",
+      request.url
+    );
+
+    const response = await fetch(generateLinkUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret":
+          process.env.GUESTS_CHECKINS_SECRET,
+      },
+      body: JSON.stringify({
+        guests: guestsWithEmail,
+      }),
+      cache: "no-store",
+    });
+
+    emailResult = await response.json();
+
+    if (!response.ok) {
+      console.error(
+        "GenerateLink API error:",
+        emailResult
+      );
+    }
+  } else {
+    emailResult = {
+      success: true,
+      sent_count: 0,
+      message: "No guests with email addresses",
+    };
+  }
+} catch (error) {
+  console.error("GenerateLink request error:", error);
+
+  emailResult = {
+    success: false,
+    message: "Could not process guest emails",
+  };
+}
+
+   
+    // 8. Resposta
     return NextResponse.json(
       {
         success: true,
         message: "Reservations received and saved successfully",
         reservations_count: body.length,
         guests_count: guestsToInsert.length,
+        email_delivery: emailResult,
       },
       { status: 200 }
     );
@@ -231,7 +286,7 @@ export async function POST(request) {
     return NextResponse.json(
       {
         success: false,
-        message: "Internal server error",
+        message: error.message || "Internal server error",
       },
       { status: 500 }
     );
